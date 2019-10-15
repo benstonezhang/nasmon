@@ -10,7 +10,6 @@
 #include <unistd.h>
 #include <syslog.h>
 #include <errno.h>
-#include <time.h>
 #include <signal.h>
 #include <string.h>
 #include <stdlib.h>
@@ -199,6 +198,7 @@ static void nas_front_panel_event(const struct input_event *restrict pe) {
                 break;
             case FP_BUTTON_OK:
                 if (lcd_is_on) {
+                    lcd_clear();
                     lcd_off();
                     lcd_is_on = 0;
                 } else {
@@ -351,18 +351,21 @@ int main(const int argc, const char *restrict argv[]) {
         ready_fds = select(fb_fd + 1, &rfds, NULL, NULL, &tv);
 
         if (ready_fds == 0) {
-            if ((nas_sensor_update() != 0) || (nas_disk_update() != 0)) {
+            gettimeofday(&tv, NULL);
+
+            if ((nas_sensor_update(tv.tv_sec) != 0) ||
+                (nas_disk_update(tv.tv_sec) != 0)) {
                 nas_power_off();
                 break;
             }
 
             if (lcd_is_on) {
-                gettimeofday(&tv, NULL);
                 if ((pwr_repeats != 0) &&
                     (tv.tv_sec - pwr_ts > poweroff_event_timeout)) {
                     pwr_repeats = 0;
                 }
                 if (pwr_repeats == 0) {
+                    lcd_clear();
                     lcd_off();
                     lcd_is_on = 0;
                 }

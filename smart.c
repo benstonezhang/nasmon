@@ -20,8 +20,9 @@
 
 #include "nasfp.h"
 
-#define HARD_DISK_WARN_TEMP 55
-#define HARD_DISK_HALT_TEMP 60
+#define SMART_UPDATE_INTERVAL   600
+#define HARD_DISK_WARN_TEMP 50
+#define HARD_DISK_HALT_TEMP 55
 
 enum e_powermode {
     PWM_UNKNOWN,
@@ -437,9 +438,14 @@ void nas_disk_init(void) {
     atexit(nas_disk_free);
 }
 
-int nas_disk_update(void) {
+int nas_disk_update(time_t now) {
+    static time_t last_tick = 0;
     enum e_powermode mode;
     int err = 0;
+
+    if (now - last_tick < SMART_UPDATE_INTERVAL) {
+        return err;
+    }
 
     for (int i = 0; i < nas_disk_count; i++) {
         mode = ata_get_powermode(nas_disk_list[i].fd);
@@ -468,17 +474,19 @@ int nas_disk_update(void) {
             err++;
         }
     }
+    last_tick = now;
 
     return err;
 }
 
 int nas_disk_item_show(const int off) {
-    static int id = 0;
+    static int id = -1;
+
+    id = id >= 0 ? (nas_disk_count + id + off) % nas_disk_count : 0;
 
     lcd_printf(1, "%s", nas_disk_list[id].model);
     lcd_printf(2, "%s: %d C", nas_disk_list[id].name, nas_disk_list[id].temp);
 
-    id = (nas_disk_count + id + off) % nas_disk_count;
     return id;
 }
 

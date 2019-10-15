@@ -12,6 +12,8 @@
 
 #include "nasfp.h"
 
+#define SENSOR_UPDATE_INTERVAL  60
+
 /* sensors */
 enum nas_sensors_ids {
     NAS_SENSOR_CPU,
@@ -241,12 +243,15 @@ void nas_sensor_init(const char *conf) {
         syslog(LOG_ERR, "sensors initialization failed\n");
         exit(EXIT_FAILURE);
     }
-
-    nas_sensor_update();
 }
 
-int nas_sensor_update(void) {
+int nas_sensor_update(time_t now) {
+    static time_t last_tick = 0;
     int err = 0;
+
+    if (now - last_tick < SENSOR_UPDATE_INTERVAL) {
+        return err;
+    }
 
     for (enum nas_sensors_ids id = NAS_SENSOR_CPU;
          id < NAS_SENSORS_COUNT; id++) {
@@ -268,6 +273,7 @@ int nas_sensor_update(void) {
 #endif
         }
     }
+    last_tick = now;
 
     return err;
 }
@@ -284,12 +290,13 @@ static const char *nas_sensor_fmt[NAS_SENSORS_COUNT][2] = {
 };
 
 int nas_sensor_item_show(const int off) {
-    static int id = 0;
+    static int id = -1;
+
+    id = id >= 0 ? (NAS_SENSORS_COUNT + id + off) % NAS_SENSORS_COUNT : 0;
 
     lcd_printf(1, nas_sensor_fmt[id][0]);
     lcd_printf(2, nas_sensor_fmt[id][1], nas_sensors[id].value);
 
-    id = (NAS_SENSORS_COUNT + id + off) % NAS_SENSORS_COUNT;
     return id;
 }
 

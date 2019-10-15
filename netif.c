@@ -84,12 +84,13 @@ static void nas_ifs_show_addr(const char *ifname, const int line) {
 }
 
 int nas_ifs_item_show(const int off) {
-    static int id = 0;
+    static int id = -1;
+
+    id = id >= 0 ? (ifs_count + id + off) % ifs_count : 0;
 
     lcd_printf(1, "%s:", ifs_list[id]);
     nas_ifs_show_addr(ifs_list[id], 2);
 
-    id = (ifs_count + id + off) % ifs_count;
     return id;
 }
 

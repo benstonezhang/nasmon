@@ -20,9 +20,11 @@ static const char *nas_sysload_titles[] = {
 static const char *nas_mem_load_fmt = "%lu/%lu";
 
 int nas_sysload_item_show(const int off) {
-    static int id = 0;
+    static int id = -1;
     struct sysinfo info;
     unsigned long mem_in_mb;
+
+    id = id >= 0 ? (6 + id + off) % 6 : 0;
 
     sysinfo(&info);
     mem_in_mb = 1024 * 1024 / info.mem_unit;
@@ -64,7 +66,6 @@ int nas_sysload_item_show(const int off) {
             break;
     }
 
-    id = (6 + id + off) % 6;
     return id;
 }
 

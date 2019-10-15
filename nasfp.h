@@ -5,6 +5,8 @@
 #ifndef NAS_FRONT_PANEL_H
 #define NAS_FRONT_PANEL_H
 
+#include <time.h>
+
 //#undef    LOG_EMERG
 //#undef    LOG_ALERT
 //#undef    LOG_CRIT
@@ -40,13 +42,13 @@ void lcd_close(void);
 
 /* sensor */
 void nas_sensor_init(const char *conf);
-int nas_sensor_update(void);
+int nas_sensor_update(time_t now);
 int nas_sensor_item_show(int off);
 int nas_sensor_summary_show(int off);
 
 /* S.M.A.R.T */
 void nas_disk_init(void);
-int nas_disk_update(void);
+int nas_disk_update(time_t now);
 int nas_disk_item_show(int off);
 int nas_disk_summary_show(int off);
 
