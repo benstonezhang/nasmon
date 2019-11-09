@@ -44,6 +44,7 @@ volatile int keep_running = 1;
 static const time_t nas_hw_scan_interval = 60;
 static const int poweroff_event_timeout = 10;
 static const int present_timeout = 30;
+static const time_t nas_fp_watchdog_interval = 24 * 3600;
 
 static time_t pwr_ts = 0;
 static time_t present_ts = 0;
@@ -369,6 +370,10 @@ int main(const int argc, const char *restrict argv[]) {
                     lcd_off();
                     lcd_is_on = 0;
                 }
+            } else if (tv.tv_sec - present_ts > nas_fp_watchdog_interval) {
+                lcd_clear();
+                lcd_off();
+                present_ts = tv.tv_sec - 2 * present_timeout;
             }
         } else if (ready_fds > 0) {
             memset(&e, 0, sizeof(e));
