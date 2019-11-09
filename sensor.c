@@ -45,8 +45,8 @@ static struct nas_sensors_info nas_sensors[NAS_SENSORS_COUNT] = {
         {
                 .feature_type = SENSORS_FEATURE_TEMP,
                 .subfeature_input = SENSORS_SUBFEATURE_TEMP_INPUT,
-                .subfeature_min = SENSORS_SUBFEATURE_TEMP_MIN,
-                .subfeature_max = SENSORS_SUBFEATURE_TEMP_MAX,
+                .subfeature_min = SENSORS_SUBFEATURE_TEMP_MAX,
+                .subfeature_max = SENSORS_SUBFEATURE_TEMP_CRIT,
                 .label = "CPU",
                 .chip = NULL,
                 .feature = NULL,
@@ -200,20 +200,12 @@ void nas_sensor_init(const char *conf) {
 #endif
 
                 if (pinfo != NULL) {
-                    if ((subfeature->type == SENSORS_SUBFEATURE_IN_INPUT) ||
-                        (subfeature->type == SENSORS_SUBFEATURE_FAN_INPUT) ||
-                        (subfeature->type == SENSORS_SUBFEATURE_TEMP_INPUT)) {
+                    if (subfeature->type == pinfo->subfeature_input) {
                         pinfo->value = value;
                         pinfo->nr = subfeature->number;
-                    }
-                    if ((subfeature->type == SENSORS_SUBFEATURE_IN_MIN) ||
-                        (subfeature->type == SENSORS_SUBFEATURE_FAN_MIN) ||
-                        (subfeature->type == SENSORS_SUBFEATURE_TEMP_MIN)) {
+                    } else if (subfeature->type == pinfo->subfeature_min) {
                         pinfo->min = value;
-                    }
-                    if ((subfeature->type == SENSORS_SUBFEATURE_IN_MAX) ||
-                        (subfeature->type == SENSORS_SUBFEATURE_FAN_MAX) ||
-                        (subfeature->type == SENSORS_SUBFEATURE_TEMP_MAX)) {
+                    } else if (subfeature->type == pinfo->subfeature_max) {
                         pinfo->max = value;
                     }
                 }
@@ -259,19 +251,31 @@ int nas_sensor_update(time_t now) {
 
         sensors_get_value(p->chip, p->nr, &(p->value));
 
-        if (p->value < p->min) {
-            err++;
-            syslog(LOG_ALERT, "sensor %s: value %.2f below low limit(%f)",
-                   p->label, p->value, p->min);
-        } else if ((p->max != 0) && (p->value > p->max)) {
-            err++;
-            syslog(LOG_ALERT, "sensor %s: value %.2f beyond high limit(%f)",
-                   p->label, p->value, p->max);
+        if (id == NAS_SENSOR_CPU) {
+            if (p->value > p->min) {
+                syslog(LOG_ALERT, "sensor %s: value %.2f beyond high limit(%f)",
+                       p->label, p->value, p->min);
+            } else if (p->value > p->max) {
+                err++;
+                syslog(LOG_ALERT,
+                       "sensor %s: value %.2f beyond critical limit(%f)",
+                       p->label, p->value, p->max);
+            }
         } else {
-#ifndef NDEBUG
-            syslog(LOG_DEBUG, "%s: temperature %.2fC", p->label, p->value);
-#endif
+            if (p->value < p->min) {
+                err++;
+                syslog(LOG_ALERT, "sensor %s: value %.2f below low limit(%f)",
+                       p->label, p->value, p->min);
+            } else if ((p->max != 0) && (p->value > p->max)) {
+                err++;
+                syslog(LOG_ALERT, "sensor %s: value %.2f beyond high limit(%f)",
+                       p->label, p->value, p->max);
+            }
         }
+
+#ifndef NDEBUG
+        syslog(LOG_DEBUG, "%s: value %.2f", p->label, p->value);
+#endif
     }
     last_tick = now;
 
