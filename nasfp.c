@@ -44,7 +44,6 @@ volatile int keep_running = 1;
 static const time_t nas_hw_scan_interval = 60;
 static const int poweroff_event_timeout = 10;
 static const int present_timeout = 30;
-static const time_t nas_fp_watchdog_interval = 24 * 3600;
 
 static time_t pwr_ts = 0;
 static time_t present_ts = 0;
@@ -59,11 +58,27 @@ static void print_event(const struct input_event *restrict pe) {
            pe->time.tv_sec, pe->time.tv_usec, pe->type, pe->code, pe->value);
 }
 
+static void nas_lcd_on(void) {
+	if (!lcd_is_on) {
+		lcd_open();
+		lcd_on();
+		lcd_is_on = 1;
+	}
+}
+
+static void nas_lcd_off() {
+	if (lcd_is_on) {
+		lcd_clear();
+		lcd_off();
+		lcd_close();
+		lcd_is_on = 0;
+	}
+}
+
 static void nas_power_off(void) {
     keep_running = 0;
 
-    lcd_is_on = 1;
-    lcd_on();
+	nas_lcd_on();
     lcd_printf(1, model);
     lcd_printf(2, ">>> shutdown <<<");
 
@@ -82,11 +97,6 @@ static void nas_power_event(const struct input_event *restrict pe) {
     print_event(pe);
 #endif
 
-    if (!lcd_is_on) {
-        lcd_is_on = 1;
-        lcd_on();
-    }
-
     if (pe->code == SYS_BUTTON_POWER && pe->value != 0) {
         if (pe->time.tv_sec - pwr_ts > poweroff_event_timeout) {
             pwr_ts = pe->time.tv_sec;
@@ -96,7 +106,9 @@ static void nas_power_event(const struct input_event *restrict pe) {
             pwr_repeats += 1;
             syslog(LOG_NOTICE, "Power button pressed again");
         }
-        lcd_printf(1, ">>> PowerOff <<<");
+
+	    nas_lcd_on();
+	    lcd_printf(1, ">>> PowerOff <<<");
         lcd_printf(2, "Confirm: %d/%d", pwr_repeats, poweroff_event_count);
     }
 
@@ -177,9 +189,8 @@ static void nas_front_panel_event(const struct input_event *restrict pe) {
 #endif
 
     if (pe->value != 0) {
-        if ((pe->code != FP_BUTTON_OK) && (!lcd_is_on)) {
-            lcd_on();
-            lcd_is_on = 1;
+        if (pe->code != FP_BUTTON_OK) {
+	        nas_lcd_on();
         }
 
         int off = 1;
@@ -199,12 +210,9 @@ static void nas_front_panel_event(const struct input_event *restrict pe) {
                 break;
             case FP_BUTTON_OK:
                 if (lcd_is_on) {
-                    lcd_clear();
-                    lcd_off();
-                    lcd_is_on = 0;
+	                nas_lcd_off();
                 } else {
-                    lcd_on();
-                    lcd_is_on = 1;
+	                nas_lcd_on();
                 }
                 off = 0;
                 break;
@@ -313,19 +321,17 @@ int main(const int argc, const char *restrict argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    lcd_open();
-
     nas_sensor_init(argv[5]);
     nas_disk_init();
     nas_ifs_init();
 
     syslog(LOG_INFO, "start hardware monitor");
 
-    lcd_on();
-    lcd_is_on = 1;
+	nas_lcd_on();
     lcd_clear();
     lcd_printf(1, model);
     lcd_printf(2, "Gentoo GNU/Linux");
+    lcd_is_on = 1;
 
     signal(SIGTERM, signal_handler);
     signal(SIGHUP, signal_handler);
@@ -366,14 +372,8 @@ int main(const int argc, const char *restrict argv[]) {
                     pwr_repeats = 0;
                 }
                 if (pwr_repeats == 0) {
-                    lcd_clear();
-                    lcd_off();
-                    lcd_is_on = 0;
+	                nas_lcd_off();
                 }
-            } else if (tv.tv_sec - present_ts > nas_fp_watchdog_interval) {
-                lcd_clear();
-                lcd_off();
-                present_ts = tv.tv_sec - 2 * present_timeout;
             }
         } else if (ready_fds > 0) {
             memset(&e, 0, sizeof(e));
@@ -398,8 +398,6 @@ int main(const int argc, const char *restrict argv[]) {
     }
 
     syslog(LOG_INFO, "cleanup and exit");
-
-    lcd_close();
 
     close(pwr_fd);
     close(fb_fd);

@@ -389,6 +389,7 @@ void nas_disk_init(void) {
 #endif
         if (sata_probe(nas_disk_list[i].fd) != 1) {
             syslog(LOG_INFO, "skip device: %s", name);
+            close(nas_disk_list[i].fd);
             continue;
         }
 
@@ -408,6 +409,7 @@ void nas_disk_init(void) {
         if (sata_enable_smart(nas_disk_list[i].fd) != 0) {
             if (errno == EIO) {
                 syslog(LOG_INFO, "%s: S.M.A.R.T. not available, skip", name);
+                close(nas_disk_list[i].fd);
                 continue;
             } else {
                 nas_log_error();
@@ -429,6 +431,9 @@ void nas_disk_init(void) {
                 break;
             }
         }
+
+        close(nas_disk_list[i].fd);
+
         if (j >= sizeof(temp_attr_ids) / sizeof(temp_attr_ids[0])) {
             syslog(LOG_WARNING, "%s: can not read temperature", name);
         }
@@ -448,6 +453,13 @@ int nas_disk_update(time_t now) {
     }
 
     for (int i = 0; i < nas_disk_count; i++) {
+        nas_disk_list[i].fd = open(nas_disk_list[i].name, O_RDONLY);
+        if (nas_disk_list[i].fd < 0) {
+            syslog(LOG_ERR, "failed to open disk device file: %s",
+                   nas_disk_list[i].name);
+            exit(EXIT_FAILURE);
+        }
+
         mode = ata_get_powermode(nas_disk_list[i].fd);
 
         if ((mode == PWM_STANDBY) || (mode == PWM_SLEEPING)) {
@@ -457,6 +469,7 @@ int nas_disk_update(time_t now) {
 
         nas_disk_list[i].temp = sata_get_temperature(nas_disk_list[i].fd,
                                                      nas_disk_list[i].attr_id);
+        close(nas_disk_list[i].fd);
 
 #ifndef NDEBUG
         syslog(LOG_DEBUG, "%s: %s, temperature %dC", nas_disk_list[i].name,

@@ -15,7 +15,7 @@
 
 #define LCD_LINE_CHARS  16
 
-static int lcd_fd;
+static int lcd_fd = -1;
 static char lcd_buf[40];
 
 void lcd_open(void) {
@@ -28,12 +28,21 @@ void lcd_open(void) {
     }
 }
 
+void lcd_close(void) {
+    if (lcd_fd > 0)
+        close(lcd_fd);
+    lcd_fd = -1;
+}
+
 static void lcd_cmd(const int cmd) {
-    lcd_buf[0] = (char) ('0' + cmd);
-    lcd_buf[1] = '\0';
-    if (write(lcd_fd, lcd_buf, 2) != 2) {
-        syslog(LOG_ERR, "LCD proc file write failed");
+    if (lcd_fd >= 0) {
+        lcd_buf[0] = (char) ('0' + cmd);
+        lcd_buf[1] = '\0';
+        if (write(lcd_fd, lcd_buf, 2) == 2) {
+            return;
+        }
     }
+    syslog(LOG_ERR, "LCD proc file write failed");
 }
 
 void lcd_clear(void) {
@@ -49,33 +58,32 @@ void lcd_off(void) {
 }
 
 void lcd_printf(const int line, const char *restrict fmt, ...) {
-    size_t len = 0;
+    if (lcd_fd >= 0) {
+        size_t len = 0;
 
-    lcd_buf[len++] = (char) ('0' + line);
-    lcd_buf[len++] = ' ';
-    lcd_buf[len++] = '"';
-
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(lcd_buf + len, LCD_LINE_CHARS + 1, fmt, args);
-    va_end(args);
-
-    len = strlen(lcd_buf);
-    /* prefix is 3 bytes, the text is 16 bytes */
-    while (len < LCD_LINE_CHARS + 3) {
+        lcd_buf[len++] = (char) ('0' + line);
         lcd_buf[len++] = ' ';
-    }
-    lcd_buf[len++] = '"';
-    lcd_buf[len++] = '\0';
+        lcd_buf[len++] = '"';
+
+        va_list args;
+        va_start(args, fmt);
+        vsnprintf(lcd_buf + len, LCD_LINE_CHARS + 1, fmt, args);
+        va_end(args);
+
+        len = strlen(lcd_buf);
+        /* prefix is 3 bytes, the text is 16 bytes */
+        while (len < LCD_LINE_CHARS + 3) {
+            lcd_buf[len++] = ' ';
+        }
+        lcd_buf[len++] = '"';
+        lcd_buf[len++] = '\0';
 #ifndef NDEBUG
-    syslog(LOG_DEBUG, "LCD: %s", lcd_buf);
+        syslog(LOG_DEBUG, "LCD: %s", lcd_buf);
 #endif
 
-    if (write(lcd_fd, lcd_buf, len) != len) {
-        syslog(LOG_ERR, "LCD proc file write failed");
+        if (write(lcd_fd, lcd_buf, len) == len) {
+            return;
+        }
     }
-}
-
-void lcd_close(void) {
-    close(lcd_fd);
+    syslog(LOG_ERR, "LCD proc file write failed");
 }
