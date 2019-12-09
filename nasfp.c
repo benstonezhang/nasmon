@@ -61,7 +61,7 @@ static void nas_power_off(void) {
     keep_running = 0;
 
     lcd_open();
-	lcd_on();
+    lcd_on();
     lcd_printf(1, model);
     lcd_printf(2, ">>> shutdown <<<");
     lcd_close();
@@ -92,8 +92,8 @@ static void nas_power_event(const struct input_event *restrict pe) {
         }
 
         lcd_open();
-	    lcd_on();
-	    lcd_printf(1, ">>> PowerOff <<<");
+        lcd_on();
+        lcd_printf(1, ">>> PowerOff <<<");
         lcd_printf(2, "Confirm: %d/%d", pwr_repeats, poweroff_event_count);
         lcd_close();
     }
@@ -178,7 +178,7 @@ static void nas_front_panel_event(const struct input_event *restrict pe) {
         if ((pe->code == FP_BUTTON_OK) && lcd_is_on()) {
             lcd_off();
         } else {
-	        lcd_open();
+            lcd_open();
             lcd_on();
         }
 
@@ -313,7 +313,7 @@ int main(const int argc, const char *restrict argv[]) {
     syslog(LOG_INFO, "start hardware monitor");
 
     lcd_open();
-	lcd_on();
+    lcd_on();
     lcd_clear();
     lcd_printf(1, model);
     lcd_printf(2, "Gentoo GNU/Linux");
