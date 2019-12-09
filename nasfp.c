@@ -48,7 +48,6 @@ static const int present_timeout = 30;
 static time_t pwr_ts = 0;
 static time_t present_ts = 0;
 static int pwr_repeats = 0;
-static int lcd_is_on = 0;
 static int info_major_index = LCD_INFO_SUMMARY;
 static const char *model = NULL;
 
@@ -58,29 +57,14 @@ static void print_event(const struct input_event *restrict pe) {
            pe->time.tv_sec, pe->time.tv_usec, pe->type, pe->code, pe->value);
 }
 
-static void nas_lcd_on(void) {
-	if (!lcd_is_on) {
-		lcd_open();
-		lcd_on();
-		lcd_is_on = 1;
-	}
-}
-
-static void nas_lcd_off() {
-	if (lcd_is_on) {
-		lcd_clear();
-		lcd_off();
-		lcd_close();
-		lcd_is_on = 0;
-	}
-}
-
 static void nas_power_off(void) {
     keep_running = 0;
 
-	nas_lcd_on();
+    lcd_open();
+	lcd_on();
     lcd_printf(1, model);
     lcd_printf(2, ">>> shutdown <<<");
+    lcd_close();
 
     if (fork() == 0) {
         const char *shutdown = "/sbin/shutdown";
@@ -107,9 +91,11 @@ static void nas_power_event(const struct input_event *restrict pe) {
             syslog(LOG_NOTICE, "Power button pressed again");
         }
 
-	    nas_lcd_on();
+        lcd_open();
+	    lcd_on();
 	    lcd_printf(1, ">>> PowerOff <<<");
         lcd_printf(2, "Confirm: %d/%d", pwr_repeats, poweroff_event_count);
+        lcd_close();
     }
 
     present_ts = pe->time.tv_sec;
@@ -189,8 +175,11 @@ static void nas_front_panel_event(const struct input_event *restrict pe) {
 #endif
 
     if (pe->value != 0) {
-        if (pe->code != FP_BUTTON_OK) {
-	        nas_lcd_on();
+        if ((pe->code == FP_BUTTON_OK) && lcd_is_on()) {
+            lcd_off();
+        } else {
+	        lcd_open();
+            lcd_on();
         }
 
         int off = 1;
@@ -209,11 +198,6 @@ static void nas_front_panel_event(const struct input_event *restrict pe) {
             case FP_BUTTON_RIGHT:
                 break;
             case FP_BUTTON_OK:
-                if (lcd_is_on) {
-	                nas_lcd_off();
-                } else {
-	                nas_lcd_on();
-                }
                 off = 0;
                 break;
             default:
@@ -223,9 +207,10 @@ static void nas_front_panel_event(const struct input_event *restrict pe) {
                 break;
         }
 
-        if (lcd_is_on) {
+        if (lcd_is_on()) {
             nas_show_info(off);
             present_ts = pe->time.tv_sec;
+            lcd_close();
         }
     }
 }
@@ -327,11 +312,12 @@ int main(const int argc, const char *restrict argv[]) {
 
     syslog(LOG_INFO, "start hardware monitor");
 
-	nas_lcd_on();
+    lcd_open();
+	lcd_on();
     lcd_clear();
     lcd_printf(1, model);
     lcd_printf(2, "Gentoo GNU/Linux");
-    lcd_is_on = 1;
+    lcd_close();
 
     signal(SIGTERM, signal_handler);
     signal(SIGHUP, signal_handler);
@@ -366,13 +352,13 @@ int main(const int argc, const char *restrict argv[]) {
                 break;
             }
 
-            if (lcd_is_on) {
+            if (lcd_is_on()) {
                 if ((pwr_repeats != 0) &&
                     (tv.tv_sec - pwr_ts > poweroff_event_timeout)) {
                     pwr_repeats = 0;
                 }
                 if (pwr_repeats == 0) {
-	                nas_lcd_off();
+                    lcd_off();
                 }
             }
         } else if (ready_fds > 0) {

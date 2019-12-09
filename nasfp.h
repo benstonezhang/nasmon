@@ -39,6 +39,7 @@ void lcd_on(void);
 void lcd_off(void);
 void lcd_printf(int line, const char *restrict fmt, ...);
 void lcd_close(void);
+int lcd_is_on(void);
 
 /* sensor */
 void nas_sensor_init(const char *conf);

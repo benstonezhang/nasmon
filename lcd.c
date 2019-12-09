@@ -15,6 +15,7 @@
 
 #define LCD_LINE_CHARS  16
 
+static int lcd_status = 0;
 static int lcd_fd = -1;
 static char lcd_buf[40];
 
@@ -51,10 +52,14 @@ void lcd_clear(void) {
 
 void lcd_on(void) {
     lcd_cmd(3);
+    lcd_status = 1;
 }
 
 void lcd_off(void) {
+    lcd_open();
     lcd_cmd(4);
+    lcd_close();
+    lcd_status = 0;
 }
 
 void lcd_printf(const int line, const char *restrict fmt, ...) {
@@ -86,4 +91,8 @@ void lcd_printf(const int line, const char *restrict fmt, ...) {
         }
     }
     syslog(LOG_ERR, "LCD proc file write failed");
+}
+
+int lcd_is_on(void) {
+    return lcd_status != 0;
 }
