@@ -7,24 +7,26 @@
 
 #include <time.h>
 
-//#undef    LOG_EMERG
-//#undef    LOG_ALERT
-//#undef    LOG_CRIT
-//#undef    LOG_ERR
-//#undef    LOG_WARNING
-//#undef    LOG_NOTICE
-//#undef    LOG_INFO
-//#undef    LOG_DEBUG
-//
-//#define    LOG_EMERG    stderr
-//#define    LOG_ALERT    stderr
-//#define    LOG_CRIT     stderr
-//#define    LOG_ERR      stderr
-//#define    LOG_WARNING  stderr
-//#define    LOG_NOTICE   stderr
-//#define    LOG_INFO     stderr
-//#define    LOG_DEBUG    stderr
-//#define syslog  fprintf
+#ifdef NAS_DEBUG
+#undef    LOG_EMERG
+#undef    LOG_ALERT
+#undef    LOG_CRIT
+#undef    LOG_ERR
+#undef    LOG_WARNING
+#undef    LOG_NOTICE
+#undef    LOG_INFO
+#undef    LOG_DEBUG
+
+#define    LOG_EMERG    stderr
+#define    LOG_ALERT    stderr
+#define    LOG_CRIT     stderr
+#define    LOG_ERR      stderr
+#define    LOG_WARNING  stderr
+#define    LOG_NOTICE   stderr
+#define    LOG_INFO     stderr
+#define    LOG_DEBUG    stderr
+#define syslog  fprintf
+#endif
 
 const char *nas_get_model(void);
 const char *nas_get_filename(const char *path);

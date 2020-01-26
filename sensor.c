@@ -45,8 +45,8 @@ static struct nas_sensors_info nas_sensors[NAS_SENSORS_COUNT] = {
         {
                 .feature_type = SENSORS_FEATURE_TEMP,
                 .subfeature_input = SENSORS_SUBFEATURE_TEMP_INPUT,
-                .subfeature_min = SENSORS_SUBFEATURE_TEMP_MAX,
-                .subfeature_max = SENSORS_SUBFEATURE_TEMP_CRIT,
+                .subfeature_min = SENSORS_SUBFEATURE_TEMP_MIN,
+                .subfeature_max = SENSORS_SUBFEATURE_TEMP_MAX,
                 .label = "CPU",
                 .chip = NULL,
                 .feature = NULL,
@@ -251,26 +251,14 @@ int nas_sensor_update(time_t now) {
 
         sensors_get_value(p->chip, p->nr, &(p->value));
 
-        if (id == NAS_SENSOR_CPU) {
-            if (p->value > p->min) {
-                syslog(LOG_ALERT, "sensor %s: value %.2f beyond high limit(%f)",
-                       p->label, p->value, p->min);
-            } else if (p->value > p->max) {
-                err++;
-                syslog(LOG_ALERT,
-                       "sensor %s: value %.2f beyond critical limit(%f)",
-                       p->label, p->value, p->max);
-            }
-        } else {
-            if (p->value < p->min) {
-                err++;
-                syslog(LOG_ALERT, "sensor %s: value %.2f below low limit(%f)",
-                       p->label, p->value, p->min);
-            } else if ((p->max != 0) && (p->value > p->max)) {
-                err++;
-                syslog(LOG_ALERT, "sensor %s: value %.2f beyond high limit(%f)",
-                       p->label, p->value, p->max);
-            }
+        if (p->value < p->min) {
+            err++;
+            syslog(LOG_ALERT, "sensor %s: value %.2f below low limit(%f)",
+                   p->label, p->value, p->min);
+        } else if ((p->max != 0) && (p->value > p->max)) {
+            err++;
+            syslog(LOG_ALERT, "sensor %s: value %.2f beyond high limit(%f)",
+                   p->label, p->value, p->max);
         }
 
 #ifndef NDEBUG
