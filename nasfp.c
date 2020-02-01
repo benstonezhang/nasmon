@@ -14,6 +14,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <getopt.h>
 
 #include "nasfp.h"
 
@@ -41,7 +42,7 @@ enum lcd_info_type {
 
 volatile int keep_running = 1;
 
-static const time_t nas_hw_scan_interval = 60;
+static const time_t nas_hw_scan_interval = 5;
 static const int poweroff_event_timeout = 10;
 static const int present_timeout = 30;
 
@@ -49,7 +50,14 @@ static time_t pwr_ts = 0;
 static time_t present_ts = 0;
 static int pwr_repeats = 0;
 static int info_major_index = LCD_INFO_SUMMARY;
+
 static const char *model = NULL;
+static const char *power_event_device = NULL;
+static const char *button_event_device = NULL;
+static const char *nic_list = NULL;
+static const char *sensors_conf = NULL;
+static const char *fan_device = NULL;
+
 
 static void print_event(const struct input_event *restrict pe) {
     syslog(LOG_DEBUG,
@@ -60,11 +68,8 @@ static void print_event(const struct input_event *restrict pe) {
 static void nas_power_off(void) {
     keep_running = 0;
 
-    lcd_open();
-    lcd_on();
     lcd_printf(1, model);
     lcd_printf(2, ">>> shutdown <<<");
-    lcd_close();
 
     if (fork() == 0) {
         const char *shutdown = "/sbin/shutdown";
@@ -91,11 +96,8 @@ static void nas_power_event(const struct input_event *restrict pe) {
             syslog(LOG_NOTICE, "Power button pressed again");
         }
 
-        lcd_open();
-        lcd_on();
         lcd_printf(1, ">>> PowerOff <<<");
         lcd_printf(2, "Confirm: %d/%d", pwr_repeats, poweroff_event_count);
-        lcd_close();
     }
 
     present_ts = pe->time.tv_sec;
@@ -120,29 +122,25 @@ static void nas_show_clock(void) {
 
 static void show_summary_info(const int off) {
     static int id = 0;
-    int ret = 0;
 
+    id = (LCD_INFO_COUNT + id + off) % LCD_INFO_COUNT;
     switch (id) {
         case LCD_INFO_SENSOR:
-            ret = nas_sensor_summary_show(off);
+            nas_sensor_summary_show();
             break;
         case LCD_INFO_DISK:
-            ret = nas_disk_summary_show(off);
+            nas_disk_summary_show();
             break;
         case LCD_INFO_SYSLOAD:
-            ret = nas_sysload_summary_show(off);
+            nas_sysload_summary_show();
             break;
         case LCD_INFO_IFS:
-            ret = nas_ifs_summary_show(off);
+            nas_ifs_summary_show();
             break;
         case LCD_INFO_CLOCK:
             nas_show_clock();
         default:
             break;
-    }
-
-    if (ret == 0) {
-        id = (id + 1) % LCD_INFO_COUNT;
     }
 }
 
@@ -174,53 +172,62 @@ static void nas_front_panel_event(const struct input_event *restrict pe) {
     print_event(pe);
 #endif
 
-    if (pe->value != 0) {
-        if ((pe->code == FP_BUTTON_OK) && lcd_is_on()) {
+    if (pe->value == 0) {
+        /* ignore release event */
+        return;
+    }
+
+    if (pe->code == FP_BUTTON_OK) {
+        if (lcd_is_on()) {
             lcd_off();
+            return;
         } else {
-            lcd_open();
             lcd_on();
         }
+    }
 
-        int off = 1;
-        switch (pe->code) {
-            case FP_BUTTON_UP:
-                info_major_index = (info_major_index + LCD_INFO_TOTAL -
-                                    (unsigned char) 1) % LCD_INFO_TOTAL;
-                break;
-            case FP_BUTTON_DOWN:
-                info_major_index = (info_major_index + (unsigned char) 1) %
-                                   LCD_INFO_TOTAL;
-                break;
-            case FP_BUTTON_LEFT:
-                off = -1;
-                break;
-            case FP_BUTTON_RIGHT:
-                break;
-            case FP_BUTTON_OK:
-                off = 0;
-                break;
-            default:
-                syslog(LOG_WARNING, "unknown button event received");
-                print_event(pe);
-                off = 0;
-                break;
-        }
+    int off = 0;
+    switch (pe->code) {
+        case FP_BUTTON_UP:
+            info_major_index = (info_major_index + LCD_INFO_TOTAL -
+                                (unsigned char) 1) % LCD_INFO_TOTAL;
+            break;
+        case FP_BUTTON_DOWN:
+            info_major_index = (info_major_index + (unsigned char) 1) %
+                               LCD_INFO_TOTAL;
+            break;
+        case FP_BUTTON_LEFT:
+            off = -1;
+            break;
+        case FP_BUTTON_RIGHT:
+            off = 1;
+            break;
+        case FP_BUTTON_OK:
+            break;
+        default:
+            syslog(LOG_WARNING, "unknown button event received");
+            print_event(pe);
+            break;
+    }
 
-        if (lcd_is_on()) {
-            nas_show_info(off);
-            present_ts = pe->time.tv_sec;
-            lcd_close();
-        }
+    if (lcd_is_on()) {
+        nas_show_info(off);
+        present_ts = pe->time.tv_sec;
     }
 }
 
 static void usage(const char *restrict name) {
-    printf("Usage: %s <NAS model> <power event device> <front button event "
-           "device> <network interfaces> <sensors config>\n"
-           "\tevent device:       /dev/input/eventX, where X is number\n"
-           "\tnetwork interfaces: comma separated names\n",
-           name);
+    printf("Usage: %s options...\n"
+           "\t--usage\t\tprint help\n"
+           "\t--model\t\tmodel of the NAS\n"
+           "\t--power\t\tpower event device (/dev/input/event?)\n"
+           "\t--buttons\tfront board buttons event device (/dev/input/event?)\n"
+           "\t--nics\t\tnetwork interfaces (comma separated names)\n"
+           "\t--sensors\tsensors config file>\n"
+           "\t--fan\t\tsystem fan device\n"
+           "\t--temp_low\tfan start temperature (default to %.1f)\n"
+           "\t--temp_high\ttemperature high threshold (default to %.1f)\n",
+           name, nas_fan_get_temp_min(), nas_fan_get_temp_max());
     exit(EXIT_FAILURE);
 }
 
@@ -238,19 +245,91 @@ static void signal_handler(int sig_num) {
  *            grep LNXPWRBN | awk '{ print $1 }'
  * fb_event: grep '^N: Name=' /proc/bus/input/devices | nl -pv 0 |
  *           grep fb_button | awk '{ print $1 }'
- * eth_nic=`cd /proc/sys/net/ipv4/conf && ls -d -m en* | sed 's/ //g'`
+ * nics: `cd /proc/sys/net/ipv4/conf && ls -d -m en* | sed 's/ //g'`
  * sensors config: /etc/sensors.d/RN626x.conf
+ * fan: /sys/class/hwmon/hwmon1/pwm1
  */
-int main(const int argc, const char *restrict argv[]) {
+int main(const int argc, char *const argv[]) {
     const char *prog_name = nas_get_filename(argv[0]);
-    model = argv[1];
 
-    if (argc != 6) {
+    while (1) {
+        static struct option long_options[] = {
+            {"usage",     no_argument,       0, '?'},
+            {"model",     required_argument, 0, 'm'},
+            {"power",     required_argument, 0, 'p'},
+            {"button",    required_argument, 0, 'b'},
+            {"nics",      required_argument, 0, 'n'},
+            {"sensors",   required_argument, 0, 's'},
+            {"fan",       required_argument, 0, 'f'},
+            {"temp_low",  required_argument, 0, 'l'},
+            {"temp_high", required_argument, 0, 'h'},
+            {0, 0,                           0, 0}
+        };
+        /* getopt_long stores the option index here. */
+        int option_index = 0;
+
+        int c = getopt_long(argc, argv, "?m:p:b:n:s:f:l:h:",
+                            long_options, &option_index);
+
+        /* Detect the end of the options. */
+        if (c == -1) {
+            break;
+        }
+
+        switch (c) {
+            case 'm':
+                model = optarg;
+                break;
+
+            case 'p':
+                power_event_device = optarg;
+                break;
+
+            case 'b':
+                button_event_device = optarg;
+                break;
+
+            case 'n':
+                nic_list = optarg;
+                break;
+
+            case 's':
+                sensors_conf = optarg;
+                break;
+
+            case 'f':
+                fan_device = optarg;
+                break;
+
+            case 'l': {
+                double x = strtod(optarg, NULL);
+                nas_fan_set_temp_min(x);
+            }
+                break;
+            case 'h': {
+                double x = strtod(optarg, NULL);
+                nas_fan_set_temp_max(x);
+            }
+                break;
+
+            case '?':
+            default:
+                usage(prog_name);
+                break;
+        }
+    }
+
+    if ((model == NULL) ||
+        (power_event_device == NULL) ||
+        (button_event_device == NULL) ||
+        (nic_list == NULL) ||
+        (sensors_conf == NULL) ||
+        (fan_device == NULL)) {
         usage(prog_name);
     }
 
     /* parse list of interfaces */
-    nas_ifs_parse(argv[4]);
+    nas_ifs_parse(nic_list);
 
     /* get the model name for later usage */
     //nas_get_model();
@@ -294,30 +373,29 @@ int main(const int argc, const char *restrict argv[]) {
     openlog(prog_name, LOG_PID | LOG_CONS | LOG_NDELAY, LOG_DAEMON);
     syslog(LOG_INFO, "launch to handle readynas special hardware events");
 
-    int pwr_fd = open(argv[2], O_RDONLY);
+    int pwr_fd = open(power_event_device, O_RDONLY);
     if (pwr_fd < 0) {
         syslog(LOG_ERR, "Open power button event device failed: %d", errno);
         exit(EXIT_FAILURE);
     }
 
-    int fb_fd = open(argv[3], O_RDONLY);
+    int fb_fd = open(button_event_device, O_RDONLY);
     if (fb_fd < 0) {
         syslog(LOG_ERR, "Open front panel event device failed: %d", errno);
         exit(EXIT_FAILURE);
     }
 
-    nas_sensor_init(argv[5]);
+    nas_sensor_init(sensors_conf);
+    nas_fan_init(fan_device);
     nas_disk_init();
     nas_ifs_init();
 
     syslog(LOG_INFO, "start hardware monitor");
 
-    lcd_open();
     lcd_on();
     lcd_clear();
     lcd_printf(1, model);
     lcd_printf(2, "Gentoo GNU/Linux");
-    lcd_close();
 
     signal(SIGTERM, signal_handler);
     signal(SIGHUP, signal_handler);
@@ -384,6 +462,8 @@ int main(const int argc, const char *restrict argv[]) {
     }
 
     syslog(LOG_INFO, "cleanup and exit");
+    lcd_open();
+    lcd_off();
 
     close(pwr_fd);
     close(fb_fd);

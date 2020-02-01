@@ -10,12 +10,12 @@
 static const double linux_loads_scale = 65536.0;
 
 static const char *nas_sysload_titles[] = {
-        "Load Average:",
-        "Processes:",
-        "Memory InUse:",
-        "Memory Shared:",
-        "Memory Buffer:",
-        "Swap InUse:"
+    "Load Average:",
+    "Processes:",
+    "Memory InUse:",
+    "Memory Shared:",
+    "Memory Buffer:",
+    "Swap InUse:"
 };
 static const char *nas_mem_load_fmt = "%lu/%lu";
 
@@ -69,7 +69,7 @@ int nas_sysload_item_show(const int off) {
     return id;
 }
 
-int nas_sysload_summary_show(const int off) {
+void nas_sysload_summary_show(void) {
     struct sysinfo info;
     unsigned long mem_in_mb;
 
@@ -84,6 +84,4 @@ int nas_sysload_summary_show(const int off) {
                info.procs,
                (info.totalram - info.freeram) / mem_in_mb,
                info.totalram / mem_in_mb);
-
-    return 0;
 }

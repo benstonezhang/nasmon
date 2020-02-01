@@ -520,8 +520,7 @@ static void nas_disk_group_show(const int line, const int off) {
     }
 }
 
-int nas_disk_summary_show(const int off) {
+void nas_disk_summary_show(void) {
     nas_disk_group_show(1, 0);
     nas_disk_group_show(2, 3);
-    return 0;
 }

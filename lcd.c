@@ -22,7 +22,9 @@ static char lcd_buf[40];
 void lcd_open(void) {
     const static char *lcd_proc_file = "/proc/LCD";
 
-    lcd_fd = open(lcd_proc_file, O_WRONLY);
+    if (lcd_fd < 0) {
+        lcd_fd = open(lcd_proc_file, O_WRONLY);
+    }
     if (lcd_fd < 0) {
         syslog(LOG_ERR, "Open LCD proc file failed: %d", errno);
         exit(EXIT_FAILURE);
@@ -30,9 +32,10 @@ void lcd_open(void) {
 }
 
 void lcd_close(void) {
-    if (lcd_fd > 0)
+    if (lcd_fd > 0) {
         close(lcd_fd);
-    lcd_fd = -1;
+        lcd_fd = -1;
+    }
 }
 
 static void lcd_cmd(const int cmd) {
@@ -51,12 +54,12 @@ void lcd_clear(void) {
 }
 
 void lcd_on(void) {
+    lcd_open();
     lcd_cmd(3);
     lcd_status = 1;
 }
 
 void lcd_off(void) {
-    lcd_open();
     lcd_cmd(4);
     lcd_close();
     lcd_status = 0;

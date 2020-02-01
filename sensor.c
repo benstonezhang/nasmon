@@ -26,6 +26,7 @@ enum nas_sensors_ids {
     NAS_SENSOR_V12,
     NAS_SENSORS_COUNT
 };
+#define NAS_SENSOR_MIN NAS_SENSOR_CPU
 
 struct nas_sensors_info {
     const sensors_feature_type feature_type;
@@ -42,86 +43,86 @@ struct nas_sensors_info {
 };
 
 static struct nas_sensors_info nas_sensors[NAS_SENSORS_COUNT] = {
-        {
-                .feature_type = SENSORS_FEATURE_TEMP,
-                .subfeature_input = SENSORS_SUBFEATURE_TEMP_INPUT,
-                .subfeature_min = SENSORS_SUBFEATURE_TEMP_MIN,
-                .subfeature_max = SENSORS_SUBFEATURE_TEMP_MAX,
-                .label = "CPU",
-                .chip = NULL,
-                .feature = NULL,
-                .nr = -1,
-        },
-        {
-                .feature_type = SENSORS_FEATURE_TEMP,
-                .subfeature_input = SENSORS_SUBFEATURE_TEMP_INPUT,
-                .subfeature_min = SENSORS_SUBFEATURE_TEMP_MIN,
-                .subfeature_max = SENSORS_SUBFEATURE_TEMP_MAX,
-                .label = "System",
-                .chip = NULL,
-                .feature = NULL,
-                .nr = -1,
-        },
-        {
-                .feature_type = SENSORS_FEATURE_FAN,
-                .subfeature_input = SENSORS_SUBFEATURE_FAN_INPUT,
-                .subfeature_min = SENSORS_SUBFEATURE_FAN_MIN,
-                .subfeature_max = SENSORS_SUBFEATURE_FAN_MAX,
-                .label = "Fan",
-                .chip = NULL,
-                .feature = NULL,
-                .nr = -1,
-        },
-        {
-                .feature_type = SENSORS_FEATURE_IN,
-                .subfeature_input = SENSORS_SUBFEATURE_IN_INPUT,
-                .subfeature_min = SENSORS_SUBFEATURE_IN_MIN,
-                .subfeature_max = SENSORS_SUBFEATURE_IN_MAX,
-                .label = "Vcore",
-                .chip = NULL,
-                .feature = NULL,
-                .nr = -1,
-        },
-        {
-                .feature_type = SENSORS_FEATURE_IN,
-                .subfeature_input = SENSORS_SUBFEATURE_IN_INPUT,
-                .subfeature_min = SENSORS_SUBFEATURE_IN_MIN,
-                .subfeature_max = SENSORS_SUBFEATURE_IN_MAX,
-                .label = "V1_2",
-                .chip = NULL,
-                .feature = NULL,
-                .nr = -1,
-        },
-        {
-                .feature_type = SENSORS_FEATURE_IN,
-                .subfeature_input = SENSORS_SUBFEATURE_IN_INPUT,
-                .subfeature_min = SENSORS_SUBFEATURE_IN_MIN,
-                .subfeature_max = SENSORS_SUBFEATURE_IN_MAX,
-                .label = "V3_3",
-                .chip = NULL,
-                .feature = NULL,
-                .nr = -1,
-        },
-        {
-                .feature_type = SENSORS_FEATURE_IN,
-                .subfeature_input = SENSORS_SUBFEATURE_IN_INPUT,
-                .subfeature_min = SENSORS_SUBFEATURE_IN_MIN,
-                .subfeature_max = SENSORS_SUBFEATURE_IN_MAX,
-                .label = "V5_0",
-                .chip = NULL,
-                .feature = NULL,
-                .nr = -1,
-        },
-        {
-                .feature_type = SENSORS_FEATURE_IN,
-                .subfeature_input = SENSORS_SUBFEATURE_IN_INPUT,
-                .subfeature_min = SENSORS_SUBFEATURE_IN_MIN,
-                .subfeature_max = SENSORS_SUBFEATURE_IN_MAX,
-                .label = "V+12",
-                .chip = NULL,
-                .feature = NULL,
-                .nr = -1,
-        },
+    {
+        .feature_type = SENSORS_FEATURE_TEMP,
+        .subfeature_input = SENSORS_SUBFEATURE_TEMP_INPUT,
+        .subfeature_min = SENSORS_SUBFEATURE_TEMP_MIN,
+        .subfeature_max = SENSORS_SUBFEATURE_TEMP_MAX,
+        .label = "CPU",
+        .chip = NULL,
+        .feature = NULL,
+        .nr = -1,
+    },
+    {
+        .feature_type = SENSORS_FEATURE_TEMP,
+        .subfeature_input = SENSORS_SUBFEATURE_TEMP_INPUT,
+        .subfeature_min = SENSORS_SUBFEATURE_TEMP_MIN,
+        .subfeature_max = SENSORS_SUBFEATURE_TEMP_MAX,
+        .label = "System",
+        .chip = NULL,
+        .feature = NULL,
+        .nr = -1,
+    },
+    {
+        .feature_type = SENSORS_FEATURE_FAN,
+        .subfeature_input = SENSORS_SUBFEATURE_FAN_INPUT,
+        .subfeature_min = SENSORS_SUBFEATURE_FAN_MIN,
+        .subfeature_max = SENSORS_SUBFEATURE_FAN_MAX,
+        .label = "Fan",
+        .chip = NULL,
+        .feature = NULL,
+        .nr = -1,
+    },
+    {
+        .feature_type = SENSORS_FEATURE_IN,
+        .subfeature_input = SENSORS_SUBFEATURE_IN_INPUT,
+        .subfeature_min = SENSORS_SUBFEATURE_IN_MIN,
+        .subfeature_max = SENSORS_SUBFEATURE_IN_MAX,
+        .label = "Vcore",
+        .chip = NULL,
+        .feature = NULL,
+        .nr = -1,
+    },
+    {
+        .feature_type = SENSORS_FEATURE_IN,
+        .subfeature_input = SENSORS_SUBFEATURE_IN_INPUT,
+        .subfeature_min = SENSORS_SUBFEATURE_IN_MIN,
+        .subfeature_max = SENSORS_SUBFEATURE_IN_MAX,
+        .label = "V1_2",
+        .chip = NULL,
+        .feature = NULL,
+        .nr = -1,
+    },
+    {
+        .feature_type = SENSORS_FEATURE_IN,
+        .subfeature_input = SENSORS_SUBFEATURE_IN_INPUT,
+        .subfeature_min = SENSORS_SUBFEATURE_IN_MIN,
+        .subfeature_max = SENSORS_SUBFEATURE_IN_MAX,
+        .label = "V3_3",
+        .chip = NULL,
+        .feature = NULL,
+        .nr = -1,
+    },
+    {
+        .feature_type = SENSORS_FEATURE_IN,
+        .subfeature_input = SENSORS_SUBFEATURE_IN_INPUT,
+        .subfeature_min = SENSORS_SUBFEATURE_IN_MIN,
+        .subfeature_max = SENSORS_SUBFEATURE_IN_MAX,
+        .label = "V5_0",
+        .chip = NULL,
+        .feature = NULL,
+        .nr = -1,
+    },
+    {
+        .feature_type = SENSORS_FEATURE_IN,
+        .subfeature_input = SENSORS_SUBFEATURE_IN_INPUT,
+        .subfeature_min = SENSORS_SUBFEATURE_IN_MIN,
+        .subfeature_max = SENSORS_SUBFEATURE_IN_MAX,
+        .label = "V+12",
+        .chip = NULL,
+        .feature = NULL,
+        .nr = -1,
+    },
 };
 
 void nas_sensor_free(void) {
@@ -189,7 +190,7 @@ void nas_sensor_init(const char *conf) {
 
             sfnr = 0;
             while ((subfeature = sensors_get_all_subfeatures(
-                    chip, feature, &sfnr)) != NULL) {
+                chip, feature, &sfnr)) != NULL) {
                 sensors_get_value(chip, sfnr - 1, &value);
 #ifndef NDEBUG
                 syslog(LOG_DEBUG, "subfeature(%d): %s, number=%d, type=%d, "
@@ -237,48 +238,56 @@ void nas_sensor_init(const char *conf) {
     }
 }
 
+static int nas_sensor_check(struct nas_sensors_info *p) {
+    int err = 0;
+    sensors_get_value(p->chip, p->nr, &(p->value));
+#ifndef NDEBUG
+    syslog(LOG_DEBUG, "%s: value %.2f", p->label, p->value);
+#endif
+
+    if (p->value < p->min) {
+        err++;
+        syslog(LOG_ALERT, "sensor %s: value %.2f below low limit(%f)",
+               p->label, p->value, p->min);
+    } else if ((p->max != 0) && (p->value > p->max)) {
+        err++;
+        syslog(LOG_ALERT, "sensor %s: value %.2f beyond high limit(%f)",
+               p->label, p->value, p->max);
+    }
+
+    return err;
+}
+
 int nas_sensor_update(time_t now) {
     static time_t last_tick = 0;
     int err = 0;
 
-    if (now - last_tick < SENSOR_UPDATE_INTERVAL) {
-        return err;
-    }
+    err += nas_sensor_check(&(nas_sensors[NAS_SENSOR_CPU]));
+    nas_fan_update(nas_sensors[NAS_SENSOR_CPU].value);
 
-    for (enum nas_sensors_ids id = NAS_SENSOR_CPU;
-         id < NAS_SENSORS_COUNT; id++) {
-        struct nas_sensors_info *p = nas_sensors + id;
-
-        sensors_get_value(p->chip, p->nr, &(p->value));
-
-        if (p->value < p->min) {
-            err++;
-            syslog(LOG_ALERT, "sensor %s: value %.2f below low limit(%f)",
-                   p->label, p->value, p->min);
-        } else if ((p->max != 0) && (p->value > p->max)) {
-            err++;
-            syslog(LOG_ALERT, "sensor %s: value %.2f beyond high limit(%f)",
-                   p->label, p->value, p->max);
+    if (now - last_tick >= SENSOR_UPDATE_INTERVAL) {
+        for (enum nas_sensors_ids id = NAS_SENSOR_MIN;
+             id < NAS_SENSORS_COUNT; id++) {
+            if (id != NAS_SENSOR_CPU) {
+                err += nas_sensor_check(&(nas_sensors[id]));
+            }
         }
 
-#ifndef NDEBUG
-        syslog(LOG_DEBUG, "%s: value %.2f", p->label, p->value);
-#endif
+        last_tick = now;
     }
-    last_tick = now;
 
     return err;
 }
 
 static const char *nas_sensor_fmt[NAS_SENSORS_COUNT][2] = {
-        {"CPU Temp:",     "%.1f C"},
-        {"System Temp:",  "%.1f C"},
-        {"System Fan:",   "%.0f RPM"},
-        {"Voltage Core:", "%.6f V"},
-        {"Voltage V1.2:", "%.6f V"},
-        {"Voltage V3.3:", "%.6f V"},
-        {"Voltage V5.0:", "%.6f V"},
-        {"Voltage V+12:", "%.6f V"},
+    {"CPU Temp:",     "%.1f C"},
+    {"System Temp:",  "%.1f C"},
+    {"System Fan:",   "%.0f RPM"},
+    {"Voltage Core:", "%.6f V"},
+    {"Voltage V1.2:", "%.6f V"},
+    {"Voltage V3.3:", "%.6f V"},
+    {"Voltage V5.0:", "%.6f V"},
+    {"Voltage V+12:", "%.6f V"},
 };
 
 int nas_sensor_item_show(const int off) {
@@ -292,27 +301,12 @@ int nas_sensor_item_show(const int off) {
     return id;
 }
 
-int nas_sensor_summary_show(const int off) {
-    static int id = 0;
-
-    switch (id) {
-        case 0:
-            lcd_printf(1, "CPU Sys  Fan");
-            lcd_printf(2, "%.0fC %.0fC %.0fRPM",
-                       nas_sensors[NAS_SENSOR_CPU].value,
-                       nas_sensors[NAS_SENSOR_System].value,
-                       nas_sensors[NAS_SENSOR_Fan].value);
-            break;
-        case 1:
-            lcd_printf(1, "Vcore V5.0 V+12");
-            lcd_printf(2, "%.2f %.2f %.2f", nas_sensors[NAS_SENSOR_Vcore].value,
-                       nas_sensors[NAS_SENSOR_V5_0].value,
-                       nas_sensors[NAS_SENSOR_V12].value);
-            break;
-        default:
-            break;
-    }
-
-    id = (2 + id + off) % 2;
-    return id;
+void nas_sensor_summary_show(void) {
+    lcd_printf(1, "%.0fC %.0fC %.0fRPM",
+               nas_sensors[NAS_SENSOR_CPU].value,
+               nas_sensors[NAS_SENSOR_System].value,
+               nas_sensors[NAS_SENSOR_Fan].value);
+    lcd_printf(2, "%.2f %.2f %.2f", nas_sensors[NAS_SENSOR_Vcore].value,
+               nas_sensors[NAS_SENSOR_V5_0].value,
+               nas_sensors[NAS_SENSOR_V12].value);
 }

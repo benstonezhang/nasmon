@@ -94,8 +94,7 @@ int nas_ifs_item_show(const int off) {
     return id;
 }
 
-int nas_ifs_summary_show(const int off) {
+void nas_ifs_summary_show(void) {
     nas_ifs_show_addr(ifs_list[0], 1);
     nas_ifs_show_addr(ifs_list[1], 2);
-    return 0;
 }

@@ -43,27 +43,35 @@ void lcd_printf(int line, const char *restrict fmt, ...);
 void lcd_close(void);
 int lcd_is_on(void);
 
+/* fan */
+double nas_fan_get_temp_min(void);
+double nas_fan_get_temp_max(void);
+void nas_fan_set_temp_min(double t);
+void nas_fan_set_temp_max(double t);
+void nas_fan_init(const char *dev);
+void nas_fan_update(double t);
+
 /* sensor */
 void nas_sensor_init(const char *conf);
 int nas_sensor_update(time_t now);
 int nas_sensor_item_show(int off);
-int nas_sensor_summary_show(int off);
+void nas_sensor_summary_show(void);
 
 /* S.M.A.R.T */
 void nas_disk_init(void);
 int nas_disk_update(time_t now);
 int nas_disk_item_show(int off);
-int nas_disk_summary_show(int off);
+void nas_disk_summary_show(void);
 
 /* system load and memory usage */
 int nas_sysload_item_show(int off);
-int nas_sysload_summary_show(int off);
+void nas_sysload_summary_show(void);
 
 /* network interfaces */
 void nas_ifs_parse(const char *ifs);
 void nas_ifs_init(void);
 int nas_ifs_item_show(int off);
-int nas_ifs_summary_show(int off);
+void nas_ifs_summary_show(void);
 
 #endif
 /* NAS_FRONT_PANEL_H */
