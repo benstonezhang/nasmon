@@ -458,8 +458,7 @@ int main(const int argc, char *const argv[]) {
     }
 
     syslog(LOG_INFO, "cleanup and exit");
-    lcd_open();
-    lcd_off();
+    lcd_close();
 
     close(pwr_fd);
     close(fb_fd);
