@@ -260,9 +260,8 @@ static int nas_sensor_check(struct nas_sensors_info *p) {
 
 int nas_sensor_update(time_t now) {
     static time_t last_tick = 0;
-    int err = 0;
 
-    err += nas_sensor_check(&(nas_sensors[NAS_SENSOR_CPU]));
+    int err = nas_sensor_check(&(nas_sensors[NAS_SENSOR_CPU]));
     nas_fan_update(nas_sensors[NAS_SENSOR_CPU].value);
 
     if (now - last_tick >= SENSOR_UPDATE_INTERVAL) {

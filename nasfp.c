@@ -411,14 +411,9 @@ int main(const int argc, char *const argv[]) {
         FD_SET(fb_fd, &rfds);
 
         gettimeofday(&tv, NULL);
-        if ((tv.tv_sec - present_ts) > present_timeout) {
-            tv.tv_sec = (nas_hw_scan_interval - 1) -
-                        (tv.tv_sec % nas_hw_scan_interval);
-            tv.tv_usec = 1000000 - tv.tv_usec;
-        } else {
-            tv.tv_sec = present_timeout;
-            tv.tv_usec = 0;
-        }
+        tv.tv_sec = (nas_hw_scan_interval - 1) -
+                    (tv.tv_sec % nas_hw_scan_interval);
+        tv.tv_usec = 1000000 - tv.tv_usec;
         ready_fds = select(fb_fd + 1, &rfds, NULL, NULL, &tv);
 
         if (ready_fds == 0) {
@@ -435,7 +430,8 @@ int main(const int argc, char *const argv[]) {
                     (tv.tv_sec - pwr_ts > poweroff_event_timeout)) {
                     pwr_repeats = 0;
                 }
-                if (pwr_repeats == 0) {
+                if ((pwr_repeats == 0) &&
+                    (tv.tv_sec - present_ts > present_timeout)) {
                     lcd_off();
                 }
             }
