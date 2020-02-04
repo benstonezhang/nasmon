@@ -16,6 +16,8 @@
 #define TEMP_BUF_LEN 6
 
 static char *pwm_enable_dev = NULL;
+static char default_pwm_enable = -1;
+static unsigned char default_pwm_output = 0;
 static int pwm_fd = -1;
 static int pwm_last = 0;
 static double temp_min = 40.0;
@@ -44,7 +46,7 @@ static void nas_fan_set_init_value(double t) {
     }
 }
 
-static void nas_fan_set_enable(int enable) {
+static void nas_fan_set_enable(int enable, int save) {
     int pwm_enable_fd = open(pwm_enable_dev, O_RDWR);
     if (pwm_enable_fd < 0) {
         syslog(LOG_ERR, "open pwm_enable device failed: %d", errno);
@@ -52,23 +54,50 @@ static void nas_fan_set_enable(int enable) {
     }
 
     char pwm_enable[3];
-    pwm_enable[0] = (char) (enable != 0 ? '1' : '0');
-    pwm_enable[1] = '\n';
-    pwm_enable[2] = '\0';
 
-    if (write(pwm_enable_fd, pwm_enable, 3) != 3) {
-        syslog(LOG_ERR, "write pwm_enable device failed: %d", errno);
+    if (save != 0) {
+        if (read(pwm_enable_fd, pwm_enable, 1) <= 0) {
+            syslog(LOG_ERR, "read pwm_enable device failed: %d", errno);
+            exit(EXIT_FAILURE);
+        }
+        default_pwm_enable = (char) (pwm_enable[0] - '0');
     }
+
+    if (default_pwm_enable != (char) enable) {
+        pwm_enable[0] = (char) ('0' + enable);
+        pwm_enable[1] = '\n';
+        pwm_enable[2] = '\0';
+
+        if (write(pwm_enable_fd, pwm_enable, 3) != 3) {
+            syslog(LOG_ERR, "write pwm_enable device failed: %d", errno);
+        }
+    }
+
     close(pwm_enable_fd);
+}
+
+static void nas_fan_output(int value) {
+    char pwm_buf[6];
+    sprintf(pwm_buf, "%d\n", value);
+    if (write(pwm_fd, pwm_buf, strlen(pwm_buf)) < 0) {
+        syslog(LOG_ERR, "pwm output file write failed: %d", errno);
+    }
 }
 
 void nas_fan_free(void) {
     if (pwm_fd > 0) {
+        syslog(LOG_INFO, "restore initial pwm output: %d", default_pwm_output);
+        if (default_pwm_output != (unsigned char) pwm_last) {
+            nas_fan_output(default_pwm_output);
+        }
+
         close(pwm_fd);
         pwm_fd = -1;
     }
     if (pwm_enable_dev != NULL) {
-        nas_fan_set_enable(0);
+        if ((default_pwm_enable >= 0) && (default_pwm_enable != 1)) {
+            nas_fan_set_enable(default_pwm_enable, 0);
+        }
         free(pwm_enable_dev);
     }
 }
@@ -106,15 +135,15 @@ void nas_fan_init(const char *dev) {
         }
     }
     pwm_last = (int) strtol(pwm_buf, NULL, 10);
+    default_pwm_output = (unsigned char) pwm_last;
     syslog(LOG_INFO, "initial pwm output: %d", pwm_last);
 
-    nas_fan_set_enable(1);
+    nas_fan_set_enable(1, 1);
     nas_fan_set_init_value(-1.0);
 }
 
 void nas_fan_update(double t) {
     int pwm = 0;
-    char pwm_buf[6];
 
     /* update temperature buffer */
     if (temp_buf[0] < 0.0) {
@@ -130,8 +159,8 @@ void nas_fan_update(double t) {
     }
 
     /* calculate weighted temperature */
-    t = 0.05 * temp_buf[0] + 0.075 * temp_buf[1] + 0.125 * temp_buf[2] +
-        0.2 * temp_buf[3] + 0.25 * temp_buf[4] + 0.3 * t;
+    t = 0.05 * temp_buf[0] + 0.075 * temp_buf[1] + 0.1125 * temp_buf[2] +
+        0.1688 * temp_buf[3] + 0.2532 * temp_buf[4] + 0.3405 * t;
 
     pwm = (int) (255.0 * (t - temp_min) / (temp_max - temp_min));
     if (pwm < 0) {
@@ -145,10 +174,7 @@ void nas_fan_update(double t) {
 #endif
 
     if (pwm_last != pwm) {
-        sprintf(pwm_buf, "%d\n", pwm);
-        if (write(pwm_fd, pwm_buf, strlen(pwm_buf)) < 0) {
-            syslog(LOG_ERR, "pwm output file write failed: %d", errno);
-        }
+        nas_fan_output(pwm);
         pwm_last = pwm;
     }
 }
