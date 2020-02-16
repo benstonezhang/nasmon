@@ -5,7 +5,7 @@
 #include <sys/sysinfo.h>
 #include <stdlib.h>
 
-#include "nasfp.h"
+#include "nasmon.h"
 
 static const double linux_loads_scale = 65536.0;
 

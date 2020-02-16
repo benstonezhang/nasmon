@@ -10,7 +10,7 @@
 
 #include <sensors/sensors.h>
 
-#include "nasfp.h"
+#include "nasmon.h"
 
 #define SENSOR_UPDATE_INTERVAL  60
 

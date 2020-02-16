@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "nasfp.h"
+#include "nasmon.h"
 
 #define SMART_UPDATE_INTERVAL   600
 #define HARD_DISK_WARN_TEMP 50

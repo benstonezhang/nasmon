@@ -16,7 +16,7 @@
 #include <stdio.h>
 #include <getopt.h>
 
-#include "nasfp.h"
+#include "nasmon.h"
 
 #define SYS_BUTTON_POWER    0x74
 

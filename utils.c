@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "nasfp.h"
+#include "nasmon.h"
 
 const char *nas_get_model(void) {
     const static char *model_file = "/proc/readynas/model";
