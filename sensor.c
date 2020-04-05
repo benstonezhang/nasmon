@@ -190,7 +190,7 @@ void nas_sensor_init(const char *conf) {
 
             sfnr = 0;
             while ((subfeature = sensors_get_all_subfeatures(
-                chip, feature, &sfnr)) != NULL) {
+                    chip, feature, &sfnr)) != NULL) {
                 sensors_get_value(chip, sfnr - 1, &value);
 #ifndef NDEBUG
                 syslog(LOG_DEBUG, "subfeature(%d): %s, number=%d, type=%d, "
@@ -308,4 +308,18 @@ void nas_sensor_summary_show(void) {
     lcd_printf(2, "%.2f %.2f %.2f", nas_sensors[NAS_SENSOR_Vcore].value,
                nas_sensors[NAS_SENSOR_V5_0].value,
                nas_sensors[NAS_SENSOR_V12].value);
+}
+
+int nas_sensor_to_json(char *buf, const size_t len) {
+    int count = 0;
+    for (int i = 0; i < NAS_SENSORS_COUNT; i++) {
+        if (i != 0) {
+            buf[count++] = ',';
+        }
+        const struct nas_sensors_info *p = nas_sensors + i;
+        count += snprintf(buf + count, len - count,
+                          "\"%s\":{\"value\":%.3f,\"min\":%.3f,\"max\":%.3f}",
+                          p->label, p->value, p->min, p->max);
+    }
+    return count;
 }

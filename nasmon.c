@@ -58,6 +58,8 @@ static const char *nic_list = NULL;
 static const char *sensors_conf = NULL;
 static const char *fan_device = NULL;
 
+static time_t sts_last_ts = 0;
+static const time_t sts_req_interval = 10;
 
 static void print_event(const struct input_event *restrict pe) {
     syslog(LOG_DEBUG,
@@ -226,7 +228,9 @@ static void usage(const char *restrict name) {
            "\t--sensors\tsensors config file>\n"
            "\t--fan\t\tsystem fan device\n"
            "\t--temp_low\tfan start temperature (default to %.1f)\n"
-           "\t--temp_high\ttemperature high threshold (default to %.1f)\n",
+           "\t--temp_high\ttemperature high threshold (default to %.1f)\n"
+           "\t--port\t\tTCP port to listen for nas status request\n"
+           "\t--nodaemon\trun in background\n",
            name, nas_fan_get_temp_min(), nas_fan_get_temp_max());
     exit(EXIT_FAILURE);
 }
@@ -251,19 +255,23 @@ static void signal_handler(int sig_num) {
  */
 int main(const int argc, char *const argv[]) {
     const char *prog_name = nas_get_filename(argv[0]);
+    short listen_port = -1;
+    int daemon = 1;
 
     while (1) {
         static struct option long_options[] = {
-            {"usage",     no_argument,       0, '?'},
-            {"model",     required_argument, 0, 'm'},
-            {"power",     required_argument, 0, 'p'},
-            {"button",    required_argument, 0, 'b'},
-            {"nics",      required_argument, 0, 'n'},
-            {"sensors",   required_argument, 0, 's'},
-            {"fan",       required_argument, 0, 'f'},
-            {"temp_low",  required_argument, 0, 'l'},
-            {"temp_high", required_argument, 0, 'h'},
-            {0, 0,                           0, 0}
+                {"usage",     no_argument,       0, '?'},
+                {"model",     required_argument, 0, 'm'},
+                {"power",     required_argument, 0, 'p'},
+                {"button",    required_argument, 0, 'b'},
+                {"nics",      required_argument, 0, 'n'},
+                {"sensors",   required_argument, 0, 's'},
+                {"fan",       required_argument, 0, 'f'},
+                {"temp_low",  required_argument, 0, 'l'},
+                {"temp_high", required_argument, 0, 'h'},
+                {"port",      required_argument, 0, 'o'},
+                {"nodaemon",  no_argument,       0, 'D'},
+                {0, 0,                           0, 0}
         };
         /* getopt_long stores the option index here. */
         int option_index = 0;
@@ -312,6 +320,14 @@ int main(const int argc, char *const argv[]) {
             }
                 break;
 
+            case 'o':
+                listen_port = strtol(optarg, NULL, 10);
+                break;
+
+            case 'D':
+                daemon = 0;
+                break;
+
             case '?':
             default:
                 usage(prog_name);
@@ -343,55 +359,55 @@ int main(const int argc, char *const argv[]) {
     /* Change File Mask */
     umask(022);
 
+    int pwr_fd, fb_fd, sts_fd;
     pid_t pid, sid;
 
-    /* Fork off the parent process */
-    pid = fork();
-    if (pid < 0) {
-        exit(EXIT_FAILURE);
-    }
+    if (daemon) {
+        /* Fork off the parent process */
+        if ((pid = fork()) < 0) {
+            exit(EXIT_FAILURE);
+        }
 
-    /* If we got a good PID, then we can exit the parent process. */
-    if (pid > 0) {
-        // create pid file
-        nas_create_pid_file(prog_name, pid);
-        exit(EXIT_SUCCESS);
-    }
+        /* If we got a good PID, then we can exit the parent process. */
+        if (pid > 0) {
+            // create pid file
+            nas_create_pid_file(prog_name, pid);
+            exit(EXIT_SUCCESS);
+        }
 
-    /* Create a new SID for the child process */
-    sid = setsid();
-    if (sid < 0) {
-        perror("setsid failed");
-        exit(EXIT_FAILURE);
-    }
+        /* Create a new SID for the child process */
+        if ((sid = setsid()) < 0) {
+            perror("setsid failed");
+            exit(EXIT_FAILURE);
+        }
 
-    /* Close all open file descriptors */
-    nas_close_all_files();
+        /* Close all open file descriptors */
+        nas_close_all_files();
+    }
 
     /* Open the log file */
     //setlogmask(LOG_UPTO(LOG_NOTICE));
     openlog(prog_name, LOG_PID | LOG_CONS | LOG_NDELAY, LOG_DAEMON);
     syslog(LOG_INFO, "launch to handle readynas special hardware events");
 
-    int pwr_fd = open(power_event_device, O_RDONLY);
-    if (pwr_fd < 0) {
+    if ((pwr_fd = open(power_event_device, O_RDONLY)) < 0) {
         syslog(LOG_ERR, "Open power button event device failed: %d", errno);
         exit(EXIT_FAILURE);
     }
 
-    int fb_fd = open(button_event_device, O_RDONLY);
-    if (fb_fd < 0) {
+    if ((fb_fd = open(button_event_device, O_RDONLY)) < 0) {
         syslog(LOG_ERR, "Open front panel event device failed: %d", errno);
         exit(EXIT_FAILURE);
     }
 
+    nas_sysload_init();
     nas_sensor_init(sensors_conf);
+    nas_ifs_init();
     nas_fan_init(fan_device);
     nas_disk_init();
-    nas_ifs_init();
+    sts_fd = nas_stssrv_init(listen_port);
 
     syslog(LOG_INFO, "start hardware monitor");
-
     lcd_on();
     lcd_clear();
     lcd_printf(1, model);
@@ -406,15 +422,19 @@ int main(const int argc, char *const argv[]) {
     int ready_fds;
 
     while (keep_running != 0) {
+        gettimeofday(&tv, NULL);
+
         FD_ZERO(&rfds);
         FD_SET(pwr_fd, &rfds);
         FD_SET(fb_fd, &rfds);
+        if (tv.tv_sec - sts_last_ts >= sts_req_interval) {
+            FD_SET(sts_fd, &rfds);
+        }
 
-        gettimeofday(&tv, NULL);
         tv.tv_sec = (nas_hw_scan_interval - 1) -
                     (tv.tv_sec % nas_hw_scan_interval);
         tv.tv_usec = 1000000 - tv.tv_usec;
-        ready_fds = select(fb_fd + 1, &rfds, NULL, NULL, &tv);
+        ready_fds = select(sts_fd + 1, &rfds, NULL, NULL, &tv);
 
         if (ready_fds == 0) {
             gettimeofday(&tv, NULL);
@@ -444,12 +464,16 @@ int main(const int argc, char *const argv[]) {
                     break;
                 }
                 nas_front_panel_event(&e);
-            } else {
+            } else if (FD_ISSET(pwr_fd, &rfds)) {
                 if (read(pwr_fd, &e, sizeof(e)) < 0) {
                     syslog(LOG_ERR, "read power button failed");
                     break;
                 }
                 nas_power_event(&e);
+            } else if (FD_ISSET(sts_fd, &rfds)) {
+                gettimeofday(&tv, NULL);
+                sts_last_ts = tv.tv_sec;
+                nas_stssrv_export();
             }
         } else if (errno != EINTR) {
             syslog(LOG_ERR, "select on file descriptors failed");

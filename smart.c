@@ -524,3 +524,17 @@ void nas_disk_summary_show(void) {
     nas_disk_group_show(1, 0);
     nas_disk_group_show(2, 3);
 }
+
+int nas_disk_to_json(char *buf, const size_t len) {
+    int count = 0;
+    for (int i = 0; i < nas_disk_count; i++) {
+        if (i != 0) {
+            buf[count++] = ',';
+        }
+        const struct nas_disk_info *p = nas_disk_list + i;
+        count += snprintf(buf + count, len - count,
+                          "\"%s\":{\"Model\":\"%s\",\"Temp\":%d}",
+                          p->name, p->model, p->temp);
+    }
+    return count;
+}

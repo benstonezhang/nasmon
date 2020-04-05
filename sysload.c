@@ -4,10 +4,12 @@
 
 #include <sys/sysinfo.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "nasmon.h"
 
 static const double linux_loads_scale = 65536.0;
+static struct sysinfo info;
 
 static const char *nas_sysload_titles[] = {
     "Load Average:",
@@ -19,9 +21,12 @@ static const char *nas_sysload_titles[] = {
 };
 static const char *nas_mem_load_fmt = "%lu/%lu";
 
+void nas_sysload_init(void) {
+    sysinfo(&info);
+}
+
 int nas_sysload_item_show(const int off) {
     static int id = -1;
-    struct sysinfo info;
     unsigned long mem_in_mb;
 
     id = id >= 0 ? (6 + id + off) % 6 : 0;
@@ -70,7 +75,6 @@ int nas_sysload_item_show(const int off) {
 }
 
 void nas_sysload_summary_show(void) {
-    struct sysinfo info;
     unsigned long mem_in_mb;
 
     sysinfo(&info);
@@ -84,4 +88,17 @@ void nas_sysload_summary_show(void) {
                info.procs,
                (info.totalram - info.freeram) / mem_in_mb,
                info.totalram / mem_in_mb);
+}
+
+int nas_sysload_to_json(char *buf, const size_t len) {
+    return snprintf(buf, len,
+                    "\"uptime\":%ld,\"load\":{\"1m\":%.2f,\"5m\":%.2f,\"15m\""
+                    ":%.2f},\"procs\":%hu,\"memory\":{\"total\":%lu,\"free\":"
+                    "%lu,\"shared\":%lu,\"buffer\":%lu},\"swap\":{\"total\":%"
+                    "lu,\"free\":%lu}",
+                    info.uptime, info.loads[0] / linux_loads_scale,
+                    info.loads[1] / linux_loads_scale,
+                    info.loads[2] / linux_loads_scale,
+                    info.procs, info.totalram, info.freeram, info.sharedram,
+                    info.bufferram, info.totalswap, info.freeswap);
 }

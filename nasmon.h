@@ -56,22 +56,31 @@ void nas_sensor_init(const char *conf);
 int nas_sensor_update(time_t now);
 int nas_sensor_item_show(int off);
 void nas_sensor_summary_show(void);
+int nas_sensor_to_json(char *buf, size_t len);
 
 /* S.M.A.R.T */
 void nas_disk_init(void);
 int nas_disk_update(time_t now);
 int nas_disk_item_show(int off);
 void nas_disk_summary_show(void);
+int nas_disk_to_json(char *buf, size_t len);
 
 /* system load and memory usage */
+void nas_sysload_init(void);
 int nas_sysload_item_show(int off);
 void nas_sysload_summary_show(void);
+int nas_sysload_to_json(char *buf, size_t len);
 
 /* network interfaces */
 void nas_ifs_parse(const char *ifs);
 void nas_ifs_init(void);
 int nas_ifs_item_show(int off);
 void nas_ifs_summary_show(void);
+int nas_ifs_to_json(char *buf, size_t len);
+
+int nas_stssrv_init(short port);
+void nas_stssrv_export(void);
+int nas_stssrv_to_json(char *buf, size_t len);
 
 #endif
 /* NAS_FRONT_PANEL_H */
