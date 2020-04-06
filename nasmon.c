@@ -59,7 +59,6 @@ static const char *sensors_conf = NULL;
 static const char *fan_device = NULL;
 
 static time_t sts_last_ts = 0;
-static const time_t sts_req_interval = 10;
 
 static void print_event(const struct input_event *restrict pe) {
     syslog(LOG_DEBUG,
@@ -400,7 +399,7 @@ int main(const int argc, char *const argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    nas_sysload_init();
+    nas_sysload_update();
     nas_sensor_init(sensors_conf);
     nas_ifs_init();
     nas_fan_init(fan_device);
@@ -427,7 +426,7 @@ int main(const int argc, char *const argv[]) {
         FD_ZERO(&rfds);
         FD_SET(pwr_fd, &rfds);
         FD_SET(fb_fd, &rfds);
-        if (tv.tv_sec - sts_last_ts >= sts_req_interval) {
+        if (tv.tv_sec - sts_last_ts >= nas_hw_scan_interval) {
             FD_SET(sts_fd, &rfds);
         }
 

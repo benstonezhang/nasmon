@@ -21,7 +21,7 @@ static const char *nas_sysload_titles[] = {
 };
 static const char *nas_mem_load_fmt = "%lu/%lu";
 
-void nas_sysload_init(void) {
+void nas_sysload_update(void) {
     sysinfo(&info);
 }
 
@@ -91,6 +91,7 @@ void nas_sysload_summary_show(void) {
 }
 
 int nas_sysload_to_json(char *buf, const size_t len) {
+    nas_sysload_update();
     return snprintf(buf, len,
                     "\"uptime\":%ld,\"load\":{\"1m\":%.2f,\"5m\":%.2f,\"15m\""
                     ":%.2f},\"procs\":%hu,\"memory\":{\"total\":%lu,\"free\":"

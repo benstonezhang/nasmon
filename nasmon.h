@@ -66,7 +66,7 @@ void nas_disk_summary_show(void);
 int nas_disk_to_json(char *buf, size_t len);
 
 /* system load and memory usage */
-void nas_sysload_init(void);
+void nas_sysload_update(void);
 int nas_sysload_item_show(int off);
 void nas_sysload_summary_show(void);
 int nas_sysload_to_json(char *buf, size_t len);
