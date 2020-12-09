@@ -143,7 +143,8 @@ void nas_fan_init(const char *dev) {
 }
 
 void nas_fan_update(double t) {
-    int pwm = 0;
+    double wt;
+    int pwm;
 
     /* update temperature buffer */
     if (temp_buf[0] < 0.0) {
@@ -159,10 +160,15 @@ void nas_fan_update(double t) {
     }
 
     /* calculate weighted temperature */
-    t = 0.05 * temp_buf[0] + 0.075 * temp_buf[1] + 0.1125 * temp_buf[2] +
-        0.1688 * temp_buf[3] + 0.2532 * temp_buf[4] + 0.3405 * t;
+    wt = 0.05 * temp_buf[0] + 0.075 * temp_buf[1] + 0.1125 * temp_buf[2] +
+         0.1688 * temp_buf[3] + 0.2532 * temp_buf[4] + 0.3405 * t;
 
-    pwm = (int) (255.0 * (t - temp_min) / (temp_max - temp_min));
+    /* if temperature is decreasing, no need to speed fan */
+    if (wt > t) {
+        wt = t;
+    }
+
+    pwm = (int) (255.0 * (wt - temp_min) / (temp_max - temp_min));
     if (pwm < 0) {
         pwm = 0;
     } else if (pwm > 255) {
@@ -170,7 +176,7 @@ void nas_fan_update(double t) {
     }
 
 #ifndef NDEBUG
-    syslog(LOG_DEBUG, "temp: %.2f, pwm output %d", t, pwm);
+    syslog(LOG_DEBUG, "temp: %.2f, pwm output %d", wt, pwm);
 #endif
 
     if (pwm_last != pwm) {
