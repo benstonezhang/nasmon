@@ -92,14 +92,15 @@ void nas_sysload_summary_show(void) {
 
 int nas_sysload_to_json(char *buf, const size_t len) {
     nas_sysload_update();
-    return snprintf(buf, len,
-                    "\"uptime\":%ld,\"load\":{\"1m\":%.2f,\"5m\":%.2f,\"15m\""
-                    ":%.2f},\"procs\":%hu,\"memory\":{\"total\":%lu,\"free\":"
-                    "%lu,\"shared\":%lu,\"buffer\":%lu},\"swap\":{\"total\":%"
-                    "lu,\"free\":%lu}",
-                    info.uptime, info.loads[0] / linux_loads_scale,
-                    info.loads[1] / linux_loads_scale,
-                    info.loads[2] / linux_loads_scale,
-                    info.procs, info.totalram, info.freeram, info.sharedram,
-                    info.bufferram, info.totalswap, info.freeswap);
+    return snprintf(
+            buf, len,
+            "\"uptime\":%ld,\"load\":{\"1m\":%.2f,\"5m\":%.2f,\"15m\":%.2f},"
+            "\"procs\":%hu,\"memory\":{\"total\":%lu,\"free\":%lu,\"shared\":"
+            "%lu,\"buffer\":%lu},\"swap\":{\"total\":%lu,\"free\":%lu}",
+            info.uptime, info.loads[0] / linux_loads_scale,
+            info.loads[1] / linux_loads_scale,
+            info.loads[2] / linux_loads_scale,
+            info.procs, info.totalram * info.mem_unit,
+            info.freeram * info.mem_unit, info.sharedram * info.mem_unit,
+            info.bufferram * info.mem_unit, info.totalswap, info.freeswap);
 }
