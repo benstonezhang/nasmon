@@ -62,8 +62,8 @@ void nas_ifs_free(void) {
         }
         free(ifs_list);
     }
-    if (inet_sock > 0) {
-        close(inet_sock);
+    if (inet_sock >= 0) {
+        nas_safe_close(inet_sock);
     }
 }
 

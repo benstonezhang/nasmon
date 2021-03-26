@@ -7,6 +7,8 @@
 
 #include <time.h>
 
+#define NAS_HW_SCAN_INTERVAL 5
+
 #ifdef NAS_DEBUG
 #undef    LOG_EMERG
 #undef    LOG_ALERT
@@ -31,6 +33,7 @@
 const char *nas_get_model(void);
 const char *nas_get_filename(const char *path);
 void nas_create_pid_file(const char *name, pid_t pid);
+void nas_safe_close(int fd);
 void nas_close_all_files(void);
 void nas_log_error(void);
 

@@ -15,8 +15,8 @@
 static int fd = -1;
 
 void nas_stssrv_free(void) {
-    if (fd > 0) {
-        close(fd);
+    if (fd >= 0) {
+        nas_safe_close(fd);
         fd = -1;
     }
 }
@@ -98,5 +98,5 @@ void nas_stssrv_export(void) {
         syslog(LOG_WARNING, "failed write status to socket");
     }
 
-    close(client_fd);
+    nas_safe_close(client_fd);
 }

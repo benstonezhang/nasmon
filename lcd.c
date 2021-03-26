@@ -32,8 +32,8 @@ void lcd_open(void) {
 }
 
 void lcd_close(void) {
-    if (lcd_fd > 0) {
-        close(lcd_fd);
+    if (lcd_fd >= 0) {
+        nas_safe_close(lcd_fd);
         lcd_fd = -1;
     }
 }

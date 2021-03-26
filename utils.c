@@ -25,6 +25,8 @@ const char *nas_get_model(void) {
         perror("read NAS model failed");
         exit(EXIT_FAILURE);
     }
+    nas_safe_close(model_fd);
+
     model[sizeof(model) - 1] = '\0';
     for (int i = 0; i < sizeof(model); i++) {
         if ((model[i] == '\n') || (model[i] == '\r')) {
@@ -57,13 +59,17 @@ void nas_create_pid_file(const char *name, const pid_t pid) {
         exit(EXIT_FAILURE);
     }
     dprintf(pid_fd, "%d\n", pid);
-    close(pid_fd);
+    nas_safe_close(pid_fd);
+}
+
+void nas_safe_close(int fd) {
+    while (close(fd) == EINTR) {}
 }
 
 /* Close all open file descriptors */
 void nas_close_all_files(void) {
     for (int x = (int) sysconf(_SC_OPEN_MAX); x >= 0; x--) {
-        close(x);
+        nas_safe_close(x);
     }
 }
 

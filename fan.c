@@ -15,6 +15,9 @@
 
 #define TEMP_BUF_LEN 6
 
+static const int pwm_update_threshold = 2;
+static const int pwm_skip_max = 180 / NAS_HW_SCAN_INTERVAL;
+
 static char *pwm_enable_dev = NULL;
 static char default_pwm_enable = -1;
 static unsigned char default_pwm_output = 0;
@@ -73,7 +76,7 @@ static void nas_fan_set_enable(int enable, int save) {
         }
     }
 
-    close(pwm_enable_fd);
+    nas_safe_close(pwm_enable_fd);
 }
 
 static void nas_fan_output(int value) {
@@ -85,13 +88,13 @@ static void nas_fan_output(int value) {
 }
 
 void nas_fan_free(void) {
-    if (pwm_fd > 0) {
+    if (pwm_fd >= 0) {
         syslog(LOG_INFO, "restore initial pwm output: %d", default_pwm_output);
         if (default_pwm_output != (unsigned char) pwm_last) {
             nas_fan_output(default_pwm_output);
         }
 
-        close(pwm_fd);
+        nas_safe_close(pwm_fd);
         pwm_fd = -1;
     }
     if (pwm_enable_dev != NULL) {
@@ -145,6 +148,7 @@ void nas_fan_init(const char *dev) {
 void nas_fan_update(double t) {
     double wt;
     int pwm;
+    static int pwm_skip_count = 0;
 
     /* update temperature buffer */
     if (temp_buf[0] < 0.0) {
@@ -179,8 +183,12 @@ void nas_fan_update(double t) {
     syslog(LOG_DEBUG, "temp: %.2f, pwm output %d", wt, pwm);
 #endif
 
-    if (pwm_last != pwm) {
+    if ((abs(pwm_last - pwm) > pwm_update_threshold) ||
+        (pwm_skip_count > pwm_skip_max)) {
         nas_fan_output(pwm);
         pwm_last = pwm;
+        pwm_skip_count = 0;
+    } else {
+        pwm_skip_count++;
     }
 }

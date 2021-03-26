@@ -42,7 +42,7 @@ enum lcd_info_type {
 
 volatile int keep_running = 1;
 
-static const time_t nas_hw_scan_interval = 5;
+static const time_t nas_hw_scan_interval = NAS_HW_SCAN_INTERVAL;
 static const int poweroff_event_timeout = 10;
 static const int present_timeout = 30;
 
@@ -483,8 +483,8 @@ int main(const int argc, char *const argv[]) {
     syslog(LOG_INFO, "cleanup and exit");
     lcd_close();
 
-    close(pwr_fd);
-    close(fb_fd);
+    nas_safe_close(pwr_fd);
+    nas_safe_close(fb_fd);
 
     closelog();
 
