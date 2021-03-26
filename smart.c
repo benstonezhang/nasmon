@@ -352,8 +352,10 @@ void nas_disk_free(void) {
 }
 
 static int nas_sata_filter(const struct dirent *ent) {
-    return (ent->d_type == DT_BLK) && (strlen(ent->d_name) == 3) &&
-           (strncmp(ent->d_name, "sd", 2) == 0) ? 1 : 0;
+    return (ent->d_type == DT_BLK) &&
+           (ent->d_name[0] == 's') && (ent->d_name[1] == 'd') &&
+           (ent->d_name[2] >= 'a') && (ent->d_name[2] <= 'z') &&
+           (ent->d_name[3] == '\0') ? 1 : 0;
 }
 
 void nas_disk_init(void) {
