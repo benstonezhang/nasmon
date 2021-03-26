@@ -62,7 +62,7 @@ void nas_create_pid_file(const char *name, const pid_t pid) {
     nas_safe_close(pid_fd);
 }
 
-void nas_safe_close(int fd) {
+void nas_safe_close(const int fd) {
     while (close(fd) == EINTR) {}
 }
 
