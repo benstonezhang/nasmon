@@ -7,7 +7,7 @@
 
 #include <time.h>
 
-#define NAS_HW_SCAN_INTERVAL 5
+#define TEMP_BUF_LEN 6
 
 #ifdef NAS_DEBUG
 #undef    LOG_EMERG
@@ -47,12 +47,8 @@ void lcd_close(void);
 int lcd_is_on(void);
 
 /* fan */
-double nas_fan_get_temp_min(void);
-double nas_fan_get_temp_max(void);
-void nas_fan_set_temp_min(double t);
-void nas_fan_set_temp_max(double t);
 void nas_fan_init(const char *dev);
-void nas_fan_update(double t);
+void nas_fan_update(int sensor, int disk);
 
 /* sensor */
 void nas_sensor_init(const char *conf);
@@ -60,6 +56,11 @@ int nas_sensor_update(time_t now);
 int nas_sensor_item_show(int off);
 void nas_sensor_summary_show(void);
 int nas_sensor_to_json(char *buf, size_t len);
+double nas_sensor_get_temp_min(void);
+double nas_sensor_get_temp_max(void);
+void nas_sensor_set_temp_min(double t);
+void nas_sensor_set_temp_max(double t);
+int nas_sensor_get_pwm(void);
 
 /* S.M.A.R.T */
 void nas_disk_init(void);
@@ -67,6 +68,7 @@ int nas_disk_update(time_t now);
 int nas_disk_item_show(int off);
 void nas_disk_summary_show(void);
 int nas_disk_to_json(char *buf, size_t len);
+int nas_disk_get_pwm(void);
 
 /* system load and memory usage */
 void nas_sysload_update(void);

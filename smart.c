@@ -20,9 +20,12 @@
 
 #include "nasmon.h"
 
-#define SMART_UPDATE_INTERVAL   600
-#define HARD_DISK_WARN_TEMP 50
-#define HARD_DISK_HALT_TEMP 55
+static const time_t smart_update_interval = 600;
+static const unsigned char temp_notice = 40;
+static const unsigned char temp_warn = 50;
+static const unsigned char temp_halt = 55;
+
+static unsigned char temp_high = 0;
 
 enum e_powermode {
     PWM_UNKNOWN,
@@ -450,10 +453,11 @@ int nas_disk_update(time_t now) {
     enum e_powermode mode;
     int err = 0;
 
-    if (now - last_tick < SMART_UPDATE_INTERVAL) {
+    if (now - last_tick < smart_update_interval) {
         return err;
     }
 
+    temp_high = 0;
     for (int i = 0; i < nas_disk_count; i++) {
         nas_disk_list[i].fd = open(nas_disk_list[i].name, O_RDONLY);
         if (nas_disk_list[i].fd < 0) {
@@ -475,11 +479,15 @@ int nas_disk_update(time_t now) {
                    nas_disk_list[i].temp);
 #endif
 
-            if (nas_disk_list[i].temp >= HARD_DISK_WARN_TEMP) {
+            if (nas_disk_list[i].temp > temp_high) {
+                temp_high = nas_disk_list[i].temp;
+            }
+
+            if (nas_disk_list[i].temp >= temp_warn) {
                 syslog(LOG_WARNING, "%s: high temperature %dC",
                        nas_disk_list[i].name, nas_disk_list[i].temp);
 
-                if (nas_disk_list[i].temp >= HARD_DISK_HALT_TEMP) {
+                if (nas_disk_list[i].temp >= temp_halt) {
                     syslog(LOG_ALERT,
                            "%s: temperature too high, need to shutdown",
                            nas_disk_list[i].name);
@@ -495,6 +503,21 @@ int nas_disk_update(time_t now) {
     last_tick = now;
 
     return err;
+}
+
+int nas_disk_get_pwm(void) {
+    int pwm = (int) (255.0 * (temp_high - temp_notice) / (temp_halt - temp_notice));
+    if (pwm < 0) {
+        pwm = 0;
+    } else if (pwm > 255) {
+        pwm = 255;
+    }
+
+#ifndef NDEBUG
+    syslog(LOG_DEBUG, "disk temp: %.2f, pwm output %d", temp_high, pwm);
+#endif
+
+    return pwm;
 }
 
 int nas_disk_item_show(const int off) {

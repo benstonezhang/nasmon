@@ -13,41 +13,14 @@
 
 #include "nasmon.h"
 
-#define TEMP_BUF_LEN 6
-
-static const int pwm_update_threshold = 2;
-static const int pwm_skip_max = 180 / NAS_HW_SCAN_INTERVAL;
+static const int pwm_update_threshold = 4;
+static const int pwm_skip_max = 36;
 
 static char *pwm_enable_dev = NULL;
 static char default_pwm_enable = -1;
 static unsigned char default_pwm_output = 0;
 static int pwm_fd = -1;
 static int pwm_last = 0;
-static double temp_min = 40.0;
-static double temp_max = 70.0;
-static double temp_buf[TEMP_BUF_LEN];
-
-double nas_fan_get_temp_min(void) {
-    return temp_min;
-}
-
-double nas_fan_get_temp_max(void) {
-    return temp_max;
-}
-
-void nas_fan_set_temp_min(double t) {
-    temp_min = t;
-}
-
-void nas_fan_set_temp_max(double t) {
-    temp_max = t;
-}
-
-static void nas_fan_set_init_value(double t) {
-    for (int i = 0; i < TEMP_BUF_LEN; i++) {
-        temp_buf[i] = t;
-    }
-}
 
 static void nas_fan_set_enable(int enable, int save) {
     int pwm_enable_fd = open(pwm_enable_dev, O_RDWR);
@@ -142,46 +115,11 @@ void nas_fan_init(const char *dev) {
     syslog(LOG_INFO, "initial pwm output: %d", pwm_last);
 
     nas_fan_set_enable(1, 1);
-    nas_fan_set_init_value(-1.0);
 }
 
-void nas_fan_update(double t) {
-    double wt;
-    int pwm;
+void nas_fan_update(const int sensor, const int disk) {
     static int pwm_skip_count = 0;
-
-    /* update temperature buffer */
-    if (temp_buf[0] < 0.0) {
-        nas_fan_set_init_value(t);
-    } else {
-        int i = 0, j = 1;
-        while (j < TEMP_BUF_LEN) {
-            temp_buf[i] = temp_buf[j];
-            i = j;
-            j++;
-        }
-        temp_buf[i] = t;
-    }
-
-    /* calculate weighted temperature */
-    wt = 0.05 * temp_buf[0] + 0.075 * temp_buf[1] + 0.1125 * temp_buf[2] +
-         0.1688 * temp_buf[3] + 0.2532 * temp_buf[4] + 0.3405 * t;
-
-    /* if temperature is decreasing, no need to speed fan */
-    if (wt > t) {
-        wt = t;
-    }
-
-    pwm = (int) (255.0 * (wt - temp_min) / (temp_max - temp_min));
-    if (pwm < 0) {
-        pwm = 0;
-    } else if (pwm > 255) {
-        pwm = 255;
-    }
-
-#ifndef NDEBUG
-    syslog(LOG_DEBUG, "temp: %.2f, pwm output %d", wt, pwm);
-#endif
+    int pwm = sensor > disk ? sensor : disk;
 
     if ((abs(pwm_last - pwm) > pwm_update_threshold) ||
         (pwm_skip_count > pwm_skip_max)) {

@@ -12,7 +12,7 @@
 
 #include "nasmon.h"
 
-#define SENSOR_UPDATE_INTERVAL  60
+static const time_t update_interval = 60;
 
 /* sensors */
 enum nas_sensors_ids {
@@ -125,11 +125,39 @@ static struct nas_sensors_info nas_sensors[NAS_SENSORS_COUNT] = {
     },
 };
 
+static double temp_min = 40.0;
+static double temp_max = 70.0;
+static double temp_buf[TEMP_BUF_LEN];
+
+double nas_sensor_get_temp_min(void) {
+    return temp_min;
+}
+
+double nas_sensor_get_temp_max(void) {
+    return temp_max;
+}
+
+void nas_sensor_set_temp_min(double t) {
+    temp_min = t;
+}
+
+void nas_sensor_set_temp_max(double t) {
+    temp_max = t;
+}
+
+void nas_sensor_temp_init(double *buf, const double t) {
+    for (int i = 0; i < TEMP_BUF_LEN; i++) {
+        buf[i] = t;
+    }
+}
+
 void nas_sensor_free(void) {
     sensors_cleanup();
 }
 
 void nas_sensor_init(const char *conf) {
+    nas_sensor_temp_init(temp_buf, -1);
+
     FILE *fp = fopen(conf, "r");
     if (fp == NULL) {
         syslog(LOG_ERR, "Open sensors config file failed: %d", errno);
@@ -262,9 +290,8 @@ int nas_sensor_update(time_t now) {
     static time_t last_tick = 0;
 
     int err = nas_sensor_check(&(nas_sensors[NAS_SENSOR_CPU]));
-    nas_fan_update(nas_sensors[NAS_SENSOR_CPU].value);
 
-    if (now - last_tick >= SENSOR_UPDATE_INTERVAL) {
+    if (now - last_tick >= update_interval) {
         for (enum nas_sensors_ids id = NAS_SENSOR_MIN;
              id < NAS_SENSORS_COUNT; id++) {
             if (id != NAS_SENSOR_CPU) {
@@ -276,6 +303,51 @@ int nas_sensor_update(time_t now) {
     }
 
     return err;
+}
+
+int nas_sensor_get_pwm(void) {
+    double t1 = nas_sensors[NAS_SENSOR_CPU].value;
+    double t2 = nas_sensors[NAS_SENSOR_System].value * 1.2;
+    int pwm;
+
+    if (t2 > t1) {
+        t1 = t2;
+    }
+
+    /* update temperature buffer */
+    if (temp_buf[0] < 0) {
+        nas_sensor_temp_init(temp_buf, t1);
+    } else {
+        int i = 0, j = 1;
+        while (j < TEMP_BUF_LEN) {
+            temp_buf[i] = temp_buf[j];
+            i = j;
+            j++;
+        }
+        temp_buf[i] = t1;
+    }
+
+    /* calculate weighted temperature */
+    t2 = 0.05 * temp_buf[0] + 0.075 * temp_buf[1] + 0.1125 * temp_buf[2] +
+         0.1688 * temp_buf[3] + 0.2532 * temp_buf[4] + 0.3405 * t1;
+
+    /* if temperature is decreasing, no need to speed fan */
+    if (t2 > t1) {
+        t2 = t1;
+    }
+
+    pwm = (int) (255.0 * (t2 - temp_min) / (temp_max - temp_min));
+    if (pwm < 0) {
+        pwm = 0;
+    } else if (pwm > 255) {
+        pwm = 255;
+    }
+
+#ifndef NDEBUG
+    syslog(LOG_DEBUG, "cpu/sys temp: %.2f, pwm output %d", t2, pwm);
+#endif
+
+    return pwm;
 }
 
 static const char *nas_sensor_fmt[NAS_SENSORS_COUNT][2] = {
