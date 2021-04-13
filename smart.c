@@ -385,15 +385,15 @@ void nas_disk_init(void) {
         strcpy(name + 5, namelist[i]->d_name);
 
         if ((nas_disk_list[i].fd = open(name, O_RDONLY)) < 0) {
-            syslog(LOG_ERR, "failed to open disk device file: %s", name);
-            exit(EXIT_FAILURE);
+            syslog(LOG_ERR, "skip open failed disk device file: %s", name);
+            continue;
         }
 
 #ifndef NDEBUG
         syslog(LOG_DEBUG, "probe disk device: %s", name);
 #endif
         if (sata_probe(nas_disk_list[i].fd) != 1) {
-            syslog(LOG_INFO, "skip device: %s", name);
+            syslog(LOG_INFO, "skip non-SMART device: %s", name);
             nas_safe_close(nas_disk_list[i].fd);
             continue;
         }
