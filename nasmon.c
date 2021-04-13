@@ -28,14 +28,15 @@
 
 #define makestr(s)  #s
 
-enum lcd_info_type {
+enum lcd_ctrl_type {
     LCD_INFO_SENSOR,
     LCD_INFO_DISK,
     LCD_INFO_SYSLOAD,
     LCD_INFO_IFS,
     LCD_INFO_CLOCK,
     LCD_INFO_SUMMARY,
-    LCD_INFO_TOTAL,
+    LCD_CPU_FREQ,
+    LCD_CTRL_TOTAL,
 };
 
 #define LCD_INFO_COUNT  LCD_INFO_SUMMARY
@@ -145,7 +146,7 @@ static void show_summary_info(const int off) {
     }
 }
 
-static void nas_show_info(const int off) {
+static void nas_handle_event(const int page_switch, const int off) {
     switch (info_major_index) {
         case LCD_INFO_SENSOR:
             nas_sensor_item_show(off);
@@ -161,6 +162,9 @@ static void nas_show_info(const int off) {
             break;
         case LCD_INFO_SUMMARY:
             show_summary_info(off);
+            break;
+        case LCD_CPU_FREQ:
+            cpu_freq_select(page_switch, off);
             break;
         default:
             nas_show_clock();
@@ -179,7 +183,7 @@ static void nas_front_panel_event(const struct input_event *restrict pe) {
     }
 
     if (pe->code == FP_BUTTON_OK) {
-        if (lcd_is_on()) {
+        if (lcd_is_on() && (info_major_index != LCD_CPU_FREQ)) {
             lcd_off();
             return;
         } else {
@@ -187,15 +191,18 @@ static void nas_front_panel_event(const struct input_event *restrict pe) {
         }
     }
 
+    int page_switch = 0;
     int off = 0;
     switch (pe->code) {
         case FP_BUTTON_UP:
-            info_major_index = (info_major_index + LCD_INFO_TOTAL -
-                                (unsigned char) 1) % LCD_INFO_TOTAL;
+            info_major_index = (info_major_index + LCD_CTRL_TOTAL -
+                                (unsigned char) 1) % LCD_CTRL_TOTAL;
+            page_switch = 1;
             break;
         case FP_BUTTON_DOWN:
             info_major_index = (info_major_index + (unsigned char) 1) %
-                               LCD_INFO_TOTAL;
+                               LCD_CTRL_TOTAL;
+            page_switch = -1;
             break;
         case FP_BUTTON_LEFT:
             off = -1;
@@ -212,7 +219,7 @@ static void nas_front_panel_event(const struct input_event *restrict pe) {
     }
 
     if (lcd_is_on()) {
-        nas_show_info(off);
+        nas_handle_event(page_switch, off);
         present_ts = pe->time.tv_sec;
     }
 }
@@ -404,6 +411,7 @@ int main(const int argc, char *const argv[]) {
     nas_ifs_init();
     nas_fan_init(fan_device);
     nas_disk_init();
+    cpu_freq_init();
     sts_fd = nas_stssrv_init(listen_port);
 
     syslog(LOG_INFO, "start hardware monitor");
@@ -454,6 +462,7 @@ int main(const int argc, char *const argv[]) {
                 if ((pwr_repeats == 0) &&
                     (tv.tv_sec - present_ts > present_timeout)) {
                     lcd_off();
+                    info_major_index = LCD_INFO_SUMMARY;
                 }
             }
         } else if (ready_fds > 0) {

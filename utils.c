@@ -78,3 +78,57 @@ void nas_log_error(void) {
     strerror_r(errno, nas_error_msg, sizeof(nas_error_msg));
     syslog(LOG_ERR, nas_error_msg);
 }
+
+int nas_safe_read(const int fd, char *buf, int count) {
+    int ret;
+    int offset = 0;
+    while(1) {
+        ret = read(fd, buf + offset, count);
+        if ((ret <= 0) && (errno != EINTR)) {
+            break;
+        }
+        offset += ret;
+        count -= ret;
+    }
+    return offset;
+}
+
+int nas_read_file(const char *name, char *buf, const int count) {
+    int ret = -1;
+    int fd = open(name, O_RDONLY);
+    if (fd >= 0) {
+        ret = nas_safe_read(fd, buf, count);
+        nas_safe_close(fd);
+    }
+    if (ret < 0) {
+        nas_log_error();
+    }
+    return ret;
+}
+
+int nas_safe_write(const int fd, const char *buf, int count) {
+    int ret;
+    int offset = 0;
+    while(1) {
+        ret = write(fd, buf + offset, count);
+        if ((ret <= 0) && (errno != EINTR)) {
+            break;
+        }
+        offset += ret;
+        count -= ret;
+    }
+    return offset;
+}
+
+int nas_write_file(const char *name, const char *buf, const int count) {
+    int ret = -1;
+    int fd = open(name, O_WRONLY);
+    if (fd >= 0) {
+        ret = nas_safe_write(fd, buf, count);
+        nas_safe_close(fd);
+    }
+    if (ret < 0) {
+        nas_log_error();
+    }
+    return ret;
+}

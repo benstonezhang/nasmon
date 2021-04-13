@@ -17,4 +17,4 @@ set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -flto=8 -floop-interchange -ftree-loop-d
 set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-Wl,--as-needed")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Wl,--as-needed -fuse-linker-plugin -s")
 
-add_executable(nasmon utils.c lcd.c fan.c sensor.c smart.c sysload.c netif.c nasmon.c sts_srv.c)
+add_executable(nasmon utils.c lcd.c fan.c sensor.c smart.c sysload.c netif.c cpu.c nasmon.c sts_srv.c)

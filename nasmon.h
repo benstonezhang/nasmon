@@ -30,12 +30,22 @@
 #define syslog  fprintf
 #endif
 
+typedef enum {
+    NAS_CPU_FREQ_MIN,
+    NAS_CPU_FREQ_LOW,
+    NAS_CPU_FREQ_HIGH,
+    NAS_CPU_FREQ_MAX,
+    NAS_CPU_FREQ_COUNT
+} nas_cpu_freq_spec;
+
 const char *nas_get_model(void);
 const char *nas_get_filename(const char *path);
 void nas_create_pid_file(const char *name, pid_t pid);
 void nas_safe_close(int fd);
 void nas_close_all_files(void);
 void nas_log_error(void);
+int nas_read_file(const char *name, char *buf, int count);
+int nas_write_file(const char *name, const char *buf, int count);
 
 /* LCD */
 void lcd_open(void);
@@ -82,6 +92,9 @@ void nas_ifs_init(void);
 int nas_ifs_item_show(int off);
 void nas_ifs_summary_show(void);
 int nas_ifs_to_json(char *buf, size_t len);
+
+void cpu_freq_init(void);
+int cpu_freq_select(int page_switch, int off);
 
 int nas_stssrv_init(short port);
 void nas_stssrv_export(void);
