@@ -66,10 +66,10 @@ int nas_sensor_update(time_t now);
 int nas_sensor_item_show(int off);
 void nas_sensor_summary_show(void);
 int nas_sensor_to_json(char *buf, size_t len);
-double nas_sensor_get_temp_min(void);
-double nas_sensor_get_temp_max(void);
-void nas_sensor_set_temp_min(double t);
-void nas_sensor_set_temp_max(double t);
+double nas_sensor_get_cpu_temp_min(void);
+double nas_sensor_get_cpu_temp_max(void);
+void nas_sensor_set_cpu_temp_min(double t);
+void nas_sensor_set_cpu_temp_max(double t);
 int nas_sensor_get_pwm(void);
 
 /* S.M.A.R.T */

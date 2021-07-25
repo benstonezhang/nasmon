@@ -237,7 +237,7 @@ static void usage(const char *restrict name) {
            "\t--temp_high\ttemperature high threshold (default to %.1f)\n"
            "\t--port\t\tTCP port to listen for nas status request\n"
            "\t--nodaemon\trun in background\n",
-           name, nas_sensor_get_temp_min(), nas_sensor_get_temp_max());
+           name, nas_sensor_get_cpu_temp_min(), nas_sensor_get_cpu_temp_max());
     exit(EXIT_FAILURE);
 }
 
@@ -317,12 +317,12 @@ int main(const int argc, char *const argv[]) {
 
             case 'l': {
                 double x = strtod(optarg, NULL);
-                nas_sensor_set_temp_min(x);
+                nas_sensor_set_cpu_temp_min(x);
             }
                 break;
             case 'h': {
                 double x = strtod(optarg, NULL);
-                nas_sensor_set_temp_max(x);
+                nas_sensor_set_cpu_temp_max(x);
             }
                 break;
 

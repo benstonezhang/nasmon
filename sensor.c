@@ -125,24 +125,25 @@ static struct nas_sensors_info nas_sensors[NAS_SENSORS_COUNT] = {
     },
 };
 
-static double temp_min = 40.0;
-static double temp_max = 70.0;
+static double sys_temp_min = 40.0;
+static double cpu_temp_min = 40.0;
+static double cpu_temp_max = 70.0;
 static double temp_buf[TEMP_BUF_LEN];
 
-double nas_sensor_get_temp_min(void) {
-    return temp_min;
+double nas_sensor_get_cpu_temp_min(void) {
+    return cpu_temp_min;
 }
 
-double nas_sensor_get_temp_max(void) {
-    return temp_max;
+double nas_sensor_get_cpu_temp_max(void) {
+    return cpu_temp_max;
 }
 
-void nas_sensor_set_temp_min(double t) {
-    temp_min = t;
+void nas_sensor_set_cpu_temp_min(double t) {
+    cpu_temp_min = t;
 }
 
-void nas_sensor_set_temp_max(double t) {
-    temp_max = t;
+void nas_sensor_set_cpu_temp_max(double t) {
+    cpu_temp_max = t;
 }
 
 void nas_sensor_temp_init(double *buf, const double t) {
@@ -307,12 +308,8 @@ int nas_sensor_update(time_t now) {
 
 int nas_sensor_get_pwm(void) {
     double t1 = nas_sensors[NAS_SENSOR_CPU].value;
-    double t2 = nas_sensors[NAS_SENSOR_System].value * 1.2;
+    double t2, pwm_cpu, pwm_mb;
     int pwm;
-
-    if (t2 > t1) {
-        t1 = t2;
-    }
 
     /* update temperature buffer */
     if (temp_buf[0] < 0) {
@@ -335,8 +332,14 @@ int nas_sensor_get_pwm(void) {
     if (t2 > t1) {
         t2 = t1;
     }
+    pwm_cpu = (t2 - cpu_temp_min) / (cpu_temp_max - cpu_temp_min);
 
-    pwm = (int) (255.0 * (t2 - temp_min) / (temp_max - temp_min));
+    /* also consider the temperature of main board */
+    t1 = nas_sensors[NAS_SENSOR_System].value;
+    pwm_mb = (t1 - sys_temp_min) /
+             (nas_sensors[NAS_SENSOR_System].max - sys_temp_min);
+
+    pwm = (int) (255.0 * (pwm_cpu > pwm_mb ? pwm_cpu : pwm_mb));
     if (pwm < 0) {
         pwm = 0;
     } else if (pwm > 255) {
@@ -344,7 +347,8 @@ int nas_sensor_get_pwm(void) {
     }
 
 #ifndef NDEBUG
-    syslog(LOG_DEBUG, "cpu/sys temp: %.2f, pwm output %d", t2, pwm);
+    syslog(LOG_DEBUG, "cpu temp: %.2f, sys temp: %.2f, pwm output %d",
+           t2, t1, pwm);
 #endif
 
     return pwm;
