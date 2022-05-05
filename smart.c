@@ -21,7 +21,7 @@
 #include "nasmon.h"
 
 static const time_t smart_update_interval = 600;
-static const unsigned char temp_notice = 40;
+static const unsigned char temp_notice = 45;
 static const unsigned char temp_warn = 50;
 static const unsigned char temp_halt = 55;
 
