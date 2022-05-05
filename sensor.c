@@ -188,7 +188,7 @@ void nas_sensor_init(const char *conf) {
     while ((chip = sensors_get_detected_chips(NULL, &nr)) != NULL) {
         sensors_snprintf_chip_name(chip_name, sizeof(chip_name), chip);
 #ifndef NDEBUG
-        syslog(LOG_DEBUG, "Chip(%d): %s\n", nr - 1, chip_name);
+        syslog(LOG_DEBUG, "Chip(%d): %s", nr - 1, chip_name);
 #endif
 
         fnr = 0;
@@ -201,7 +201,7 @@ void nas_sensor_init(const char *conf) {
                 break;
             }
 #ifndef NDEBUG
-            syslog(LOG_DEBUG, "feature(%d): %s(%s), number=%d, type=%d\n",
+            syslog(LOG_DEBUG, "feature(%d): %s(%s), number=%d, type=%d",
                    fnr - 1, label, feature->name, feature->number,
                    feature->type);
 #endif
@@ -223,7 +223,7 @@ void nas_sensor_init(const char *conf) {
                 sensors_get_value(chip, sfnr - 1, &value);
 #ifndef NDEBUG
                 syslog(LOG_DEBUG, "subfeature(%d): %s, number=%d, type=%d, "
-                                  "mapping=%d, flags=%u, value=%f\n",
+                                  "mapping=%d, flags=%u, value=%f",
                        sfnr - 1, subfeature->name, subfeature->number,
                        subfeature->type,
                        subfeature->mapping, subfeature->flags, value);
@@ -243,7 +243,7 @@ void nas_sensor_init(const char *conf) {
 
             if (pinfo != NULL) {
                 syslog(LOG_INFO,
-                       "sensor %s, %s, subfeature %d, value=%f, min=%f, max=%f\n",
+                       "sensor %s, %s, subfeature %d, value=%f, min=%f, max=%f",
                        label, chip_name, pinfo->nr, pinfo->value, pinfo->min,
                        pinfo->max);
             }
@@ -255,14 +255,14 @@ void nas_sensor_init(const char *conf) {
     if (!err) {
         for (int i = 0; i < NAS_SENSORS_COUNT; i++) {
             if (nas_sensors[i].chip == NULL) {
-                syslog(LOG_ERR, "sensor %s missed\n", nas_sensors[i].label);
+                syslog(LOG_ERR, "sensor %s missed", nas_sensors[i].label);
                 err--;
             }
         }
     }
 
     if (err != 0) {
-        syslog(LOG_ERR, "sensors initialization failed\n");
+        syslog(LOG_ERR, "sensors initialization failed");
         exit(EXIT_FAILURE);
     }
 }
