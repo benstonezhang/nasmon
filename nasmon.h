@@ -61,18 +61,22 @@ void nas_fan_init(const char *dev);
 void nas_fan_update(int sensor, int disk);
 
 /* sensor */
+extern double sys_temp_notice;
+extern double cpu_temp_notice;
+extern double cpu_temp_halt;
+
 void nas_sensor_init(const char *conf);
 int nas_sensor_update(time_t now);
 int nas_sensor_item_show(int off);
 void nas_sensor_summary_show(void);
 int nas_sensor_to_json(char *buf, size_t len);
-double nas_sensor_get_cpu_temp_min(void);
-double nas_sensor_get_cpu_temp_max(void);
-void nas_sensor_set_cpu_temp_min(double t);
-void nas_sensor_set_cpu_temp_max(double t);
 int nas_sensor_get_pwm(void);
 
 /* S.M.A.R.T */
+extern time_t smart_update_interval;
+extern int disk_temp_notice;
+extern int disk_temp_halt;
+
 void nas_disk_init(void);
 int nas_disk_update(time_t now);
 int nas_disk_item_show(int off);

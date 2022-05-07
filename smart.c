@@ -20,12 +20,12 @@
 
 #include "nasmon.h"
 
-static const time_t smart_update_interval = 600;
-static const unsigned char temp_notice = 45;
-static const unsigned char temp_warn = 50;
-static const unsigned char temp_halt = 55;
+time_t smart_update_interval = 600;
+int disk_temp_notice = 40;
+int disk_temp_halt = 60;
 
-static unsigned char temp_high = 0;
+static const int disk_temp_warn = 50;
+static int disk_temp = 0;
 
 enum e_powermode {
     PWM_UNKNOWN,
@@ -446,6 +446,9 @@ void nas_disk_init(void) {
 
     free(namelist);
     atexit(nas_disk_free);
+
+    syslog(LOG_INFO, "Hard disk guard temperature: %d -> %d",
+           disk_temp_notice, disk_temp_halt);
 }
 
 int nas_disk_update(time_t now) {
@@ -457,7 +460,7 @@ int nas_disk_update(time_t now) {
         return err;
     }
 
-    temp_high = 0;
+    disk_temp = 0;
     for (int i = 0; i < nas_disk_count; i++) {
         nas_disk_list[i].fd = open(nas_disk_list[i].name, O_RDONLY);
         if (nas_disk_list[i].fd < 0) {
@@ -479,15 +482,15 @@ int nas_disk_update(time_t now) {
                    nas_disk_list[i].temp);
 #endif
 
-            if (nas_disk_list[i].temp > temp_high) {
-                temp_high = nas_disk_list[i].temp;
+            if (nas_disk_list[i].temp > disk_temp) {
+                disk_temp = nas_disk_list[i].temp;
             }
 
-            if (nas_disk_list[i].temp >= temp_warn) {
+            if (nas_disk_list[i].temp >= disk_temp_warn) {
                 syslog(LOG_WARNING, "%s: high temperature %dC",
                        nas_disk_list[i].name, nas_disk_list[i].temp);
 
-                if (nas_disk_list[i].temp >= temp_halt) {
+                if (nas_disk_list[i].temp >= disk_temp_halt) {
                     syslog(LOG_ALERT,
                            "%s: temperature too high, need to shutdown",
                            nas_disk_list[i].name);
@@ -506,7 +509,7 @@ int nas_disk_update(time_t now) {
 }
 
 int nas_disk_get_pwm(void) {
-    int pwm = (int) (255.0 * (temp_high - temp_notice) / (temp_halt - temp_notice));
+    int pwm = (int) (255.0 * (disk_temp - disk_temp_notice) / (disk_temp_halt - disk_temp_notice));
     if (pwm < 0) {
         pwm = 0;
     } else if (pwm > 255) {
@@ -514,7 +517,7 @@ int nas_disk_get_pwm(void) {
     }
 
 #ifndef NDEBUG
-    syslog(LOG_DEBUG, "disk temp: %.2f, pwm output %d", temp_high, pwm);
+    syslog(LOG_DEBUG, "disk temp: %d, pwm output %d", disk_temp, pwm);
 #endif
 
     return pwm;

@@ -227,17 +227,21 @@ static void nas_front_panel_event(const struct input_event *restrict pe) {
 static void usage(const char *restrict name) {
     printf("Usage: %s options...\n"
            "\t--usage\t\tprint help\n"
-           "\t--model\t\tmodel of the NAS\n"
-           "\t--power\t\tpower event device (/dev/input/event?)\n"
-           "\t--buttons\tfront board buttons event device (/dev/input/event?)\n"
-           "\t--nics\t\tnetwork interfaces (comma separated names)\n"
-           "\t--sensors\tsensors config file>\n"
-           "\t--fan\t\tsystem fan device\n"
-           "\t--temp_low\tfan start temperature (default to %.1f)\n"
-           "\t--temp_high\ttemperature high threshold (default to %.1f)\n"
-           "\t--port\t\tTCP port to listen for nas status request\n"
-           "\t--nodaemon\trun in background\n",
-           name, nas_sensor_get_cpu_temp_min(), nas_sensor_get_cpu_temp_max());
+           "\t--nodaemon\trun in background\n"
+           "\t--port=PORT\tTCP port to listen for nas status request\n"
+           "\t--model=MODEL\tmodel of the NAS\n"
+           "\t--power=DEV\tpower event device (/dev/input/event?)\n"
+           "\t--buttons=DEV\tfront board buttons event device (/dev/input/event?)\n"
+           "\t--sensors=FILE\tsensors config file>\n"
+           "\t--fan=DEV\tsystem fan device\n"
+           "\t--nics=NIC1,...,NICn\tnetwork interfaces (comma separated names)\n"
+           "\t--temp_cpu_notice=TEMP\tfan bump temperature(C) for CPU (default: %.0f)\n"
+           "\t--temp_cpu_high=TEMP\thalt temperature(C) for CPU (default: %.0f)\n"
+           "\t--temp_sys_notice=TEMP\tfan bump temperature(C) for mother board (default: %.0f)\n"
+           "\t--temp_disk_notice=TEMP\tfan bump temperature(C) for hard disk (default: %d)\n"
+           "\t--temp_disk_high=TEMP\thalt temperature(C) for hard disk (default: %d)\n",
+           name, cpu_temp_notice, cpu_temp_halt, sys_temp_notice,
+           disk_temp_notice, disk_temp_halt);
     exit(EXIT_FAILURE);
 }
 
@@ -266,23 +270,26 @@ int main(const int argc, char *const argv[]) {
 
     while (1) {
         static struct option long_options[] = {
-                {"usage",     no_argument,       0, '?'},
-                {"model",     required_argument, 0, 'm'},
-                {"power",     required_argument, 0, 'p'},
-                {"button",    required_argument, 0, 'b'},
-                {"nics",      required_argument, 0, 'n'},
-                {"sensors",   required_argument, 0, 's'},
-                {"fan",       required_argument, 0, 'f'},
-                {"temp_low",  required_argument, 0, 'l'},
-                {"temp_high", required_argument, 0, 'h'},
-                {"port",      required_argument, 0, 'o'},
-                {"nodaemon",  no_argument,       0, 'D'},
-                {0, 0,                           0, 0}
+                {"usage",            no_argument,       0, '?'},
+                {"nodaemon",         no_argument,       0, 'D'},
+                {"port",             required_argument, 0, 'o'},
+                {"model",            required_argument, 0, 'm'},
+                {"power",            required_argument, 0, 'p'},
+                {"button",           required_argument, 0, 'b'},
+                {"sensors",          required_argument, 0, 's'},
+                {"fan",              required_argument, 0, 'f'},
+                {"nics",             required_argument, 0, 'n'},
+                {"temp_cpu_notice",  required_argument, 0, 'c'},
+                {"temp_cpu_high",    required_argument, 0, 'd'},
+                {"temp_sys_notice",  required_argument, 0, 'e'},
+                {"temp_disk_notice", required_argument, 0, 'g'},
+                {"temp_disk_high",   required_argument, 0, 'h'},
+                {0,                  0,                 0, 0}
         };
         /* getopt_long stores the option index here. */
         int option_index = 0;
 
-        int c = getopt_long(argc, argv, "?m:p:b:n:s:f:l:h:",
+        int c = getopt_long(argc, argv, "?m:p:b:s:f:n:c:d:e:g:h:",
                             long_options, &option_index);
 
         /* Detect the end of the options. */
@@ -291,49 +298,45 @@ int main(const int argc, char *const argv[]) {
         }
 
         switch (c) {
-            case 'm':
-                model = optarg;
-                break;
-
-            case 'p':
-                power_event_device = optarg;
-                break;
-
-            case 'b':
-                button_event_device = optarg;
-                break;
-
-            case 'n':
-                nic_list = optarg;
-                break;
-
-            case 's':
-                sensors_conf = optarg;
-                break;
-
-            case 'f':
-                fan_device = optarg;
-                break;
-
-            case 'l': {
-                double x = strtod(optarg, NULL);
-                nas_sensor_set_cpu_temp_min(x);
-            }
-                break;
-            case 'h': {
-                double x = strtod(optarg, NULL);
-                nas_sensor_set_cpu_temp_max(x);
-            }
-                break;
-
-            case 'o':
-                listen_port = strtol(optarg, NULL, 10);
-                break;
-
             case 'D':
                 daemon = 0;
                 break;
-
+            case 'o':
+                listen_port = strtol(optarg, NULL, 10);
+                break;
+            case 'm':
+                model = optarg;
+                break;
+            case 'p':
+                power_event_device = optarg;
+                break;
+            case 'b':
+                button_event_device = optarg;
+                break;
+            case 's':
+                sensors_conf = optarg;
+                break;
+            case 'f':
+                fan_device = optarg;
+                break;
+            case 'n':
+                nic_list = optarg;
+                break;
+            case 'c':
+                cpu_temp_notice = strtol(optarg, NULL, 10);
+                break;
+            case 'd':
+                cpu_temp_halt = strtol(optarg, NULL, 10);
+                break;
+            case 'e':
+                sys_temp_notice = strtol(optarg, NULL, 10);
+                break;
+            case 'g':
+                disk_temp_notice = strtol(optarg, NULL, 10);
+                break;
+            case 'h':
+                disk_temp_halt = strtol(optarg, NULL, 10);
+                break;
             case '?':
             default:
                 usage(prog_name);
