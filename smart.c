@@ -417,8 +417,18 @@ void nas_disk_init(void) {
                 nas_safe_close(nas_disk_list[i].fd);
                 continue;
             } else {
-                nas_log_error();
-                exit(EXIT_FAILURE);
+                /* sleep a moment and try again */
+                sleep(3);
+                if (sata_enable_smart(nas_disk_list[i].fd) != 0) {
+                    if (errno == EIO) {
+                        syslog(LOG_INFO, "%s: S.M.A.R.T. not available, skip", name);
+                        nas_safe_close(nas_disk_list[i].fd);
+                        continue;
+                    } else {
+                        nas_log_error();
+                        exit(EXIT_FAILURE);
+                    }
+                }
             }
         }
 

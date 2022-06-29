@@ -435,8 +435,10 @@ int main(const int argc, char *const argv[]) {
         gettimeofday(&tv, NULL);
 
         FD_ZERO(&rfds);
-        FD_SET(pwr_fd, &rfds);
-        FD_SET(fb_fd, &rfds);
+        if (pwr_fd >= 0)
+            FD_SET(pwr_fd, &rfds);
+        if (fb_fd >= 0)
+            FD_SET(fb_fd, &rfds);
         if (tv.tv_sec - sts_last_ts >= nas_hw_scan_interval) {
             FD_SET(sts_fd, &rfds);
         }
@@ -471,13 +473,13 @@ int main(const int argc, char *const argv[]) {
         } else if (ready_fds > 0) {
             memset(&e, 0, sizeof(e));
 
-            if (FD_ISSET(fb_fd, &rfds)) {
+            if (fb_fd >= 0 && FD_ISSET(fb_fd, &rfds)) {
                 if (read(fb_fd, &e, sizeof(e)) < 0) {
                     syslog(LOG_ERR, "read front board button failed");
                     break;
                 }
                 nas_front_panel_event(&e);
-            } else if (FD_ISSET(pwr_fd, &rfds)) {
+            } else if (pwr_fd >= 0 && FD_ISSET(pwr_fd, &rfds)) {
                 if (read(pwr_fd, &e, sizeof(e)) < 0) {
                     syslog(LOG_ERR, "read power button failed");
                     break;
@@ -497,8 +499,10 @@ int main(const int argc, char *const argv[]) {
     syslog(LOG_INFO, "cleanup and exit");
     lcd_close();
 
-    nas_safe_close(pwr_fd);
-    nas_safe_close(fb_fd);
+    if (pwr_fd >= 0)
+        nas_safe_close(pwr_fd);
+    if (fb_fd >= 0)
+        nas_safe_close(fb_fd);
 
     closelog();
 
