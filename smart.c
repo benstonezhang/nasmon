@@ -22,10 +22,14 @@
 
 time_t smart_update_interval = 600;
 int disk_temp_notice = 40;
+int disk_temp_warn = 55;
 int disk_temp_halt = 60;
+int ssd_temp_notice = 42;
+int ssd_temp_warn = 65;
+int ssd_temp_halt = 70;
 
-static const int disk_temp_warn = 50;
 static int disk_temp = 0;
+static int ssd_temp = 0;
 
 enum e_powermode {
     PWM_UNKNOWN,
@@ -33,6 +37,9 @@ enum e_powermode {
     PWM_SLEEPING,
     PWM_STANDBY
 };
+
+/* Identify words offset of Nominal Media Rotation Rate  */
+static const int identify_offset_nmrr = 217;
 
 /* default is 194 */
 static unsigned char temp_attr_ids[] = {194, 190};
@@ -270,7 +277,7 @@ static int sata_probe(const int fd) {
         return 1;
 }
 
-static void sata_model(const int fd, char *buf, const size_t len) {
+static unsigned short sata_model(const int fd, char *buf, const size_t len) {
     unsigned char cmd[4] = {WIN_IDENTIFY, 0, 0, 1};
     unsigned char identify[512];
 
@@ -280,6 +287,8 @@ static void sata_model(const int fd, char *buf, const size_t len) {
         hd_fixstring(identify + 54, 24, 1);
         strncpy(buf, (char *) identify + 54, len);
     }
+    return identify[identify_offset_nmrr * 2] |
+           (((unsigned short) identify[identify_offset_nmrr * 2 + 1]) << 8);
 }
 
 static const unsigned char *
@@ -332,6 +341,7 @@ struct nas_disk_info {
     int fd;
     unsigned char attr_id;
     unsigned char temp;
+    unsigned short nmrr;
 };
 
 static int nas_disk_count = 0;
@@ -379,7 +389,7 @@ void nas_disk_init(void) {
 
     nas_disk_count = 0;
     for (int i = 0; i < count; free(namelist[i++])) {
-        char name[strlen(namelist[i]->d_name) + 5];
+        char name[strlen(namelist[i]->d_name) + 6];
 
         strcpy(name, "/dev/");
         strcpy(name + 5, namelist[i]->d_name);
@@ -404,10 +414,12 @@ void nas_disk_init(void) {
         }
 
         char buf[128];
-        sata_model(nas_disk_list[i].fd, buf, sizeof(buf));
+        nas_disk_list[i].nmrr = sata_model(nas_disk_list[i].fd, buf,
+                                           sizeof(buf));
         nas_disk_list[i].model = strdup(buf);
 #ifndef NDEBUG
-        syslog(LOG_DEBUG, "found device: %s %s", name, buf);
+        syslog(LOG_DEBUG, "found device: %s %s, rotation rate: %d", name, buf,
+               nas_disk_list[i].nmrr);
 #endif
 
         /* enable SMART */
@@ -421,7 +433,8 @@ void nas_disk_init(void) {
                 sleep(3);
                 if (sata_enable_smart(nas_disk_list[i].fd) != 0) {
                     if (errno == EIO) {
-                        syslog(LOG_INFO, "%s: S.M.A.R.T. not available, skip", name);
+                        syslog(LOG_INFO, "%s: S.M.A.R.T. not available, skip",
+                               name);
                         nas_safe_close(nas_disk_list[i].fd);
                         continue;
                     } else {
@@ -459,6 +472,8 @@ void nas_disk_init(void) {
 
     syslog(LOG_INFO, "Hard disk guard temperature: %d -> %d",
            disk_temp_notice, disk_temp_halt);
+    syslog(LOG_INFO, "SSD guard temperature: %d -> %d",
+           ssd_temp_notice, ssd_temp_halt);
 }
 
 int nas_disk_update(time_t now) {
@@ -471,6 +486,7 @@ int nas_disk_update(time_t now) {
     }
 
     disk_temp = 0;
+    ssd_temp = 0;
     for (int i = 0; i < nas_disk_count; i++) {
         nas_disk_list[i].fd = open(nas_disk_list[i].name, O_RDONLY);
         if (nas_disk_list[i].fd < 0) {
@@ -492,19 +508,37 @@ int nas_disk_update(time_t now) {
                    nas_disk_list[i].temp);
 #endif
 
-            if (nas_disk_list[i].temp > disk_temp) {
-                disk_temp = nas_disk_list[i].temp;
-            }
+            if (nas_disk_list[i].nmrr != 0x01) {
+                if (nas_disk_list[i].temp > disk_temp) {
+                    disk_temp = nas_disk_list[i].temp;
+                }
 
-            if (nas_disk_list[i].temp >= disk_temp_warn) {
-                syslog(LOG_WARNING, "%s: high temperature %dC",
-                       nas_disk_list[i].name, nas_disk_list[i].temp);
+                if (nas_disk_list[i].temp >= disk_temp_warn) {
+                    syslog(LOG_WARNING, "%s: high temperature %dC",
+                           nas_disk_list[i].name, nas_disk_list[i].temp);
 
-                if (nas_disk_list[i].temp >= disk_temp_halt) {
-                    syslog(LOG_ALERT,
-                           "%s: temperature too high, need to shutdown",
-                           nas_disk_list[i].name);
-                    err++;
+                    if (nas_disk_list[i].temp >= disk_temp_halt) {
+                        syslog(LOG_ALERT,
+                               "%s: temperature too high, need to shutdown",
+                               nas_disk_list[i].name);
+                        err++;
+                    }
+                }
+            } else {
+                if (nas_disk_list[i].temp > ssd_temp) {
+                    ssd_temp = nas_disk_list[i].temp;
+                }
+
+                if (nas_disk_list[i].temp >= ssd_temp_warn) {
+                    syslog(LOG_WARNING, "%s: high temperature %dC",
+                           nas_disk_list[i].name, nas_disk_list[i].temp);
+
+                    if (nas_disk_list[i].temp >= ssd_temp_halt) {
+                        syslog(LOG_ALERT,
+                               "%s: temperature too high, need to shutdown",
+                               nas_disk_list[i].name);
+                        err++;
+                    }
                 }
             }
         } else {
@@ -519,18 +553,29 @@ int nas_disk_update(time_t now) {
 }
 
 int nas_disk_get_pwm(void) {
-    int pwm = (int) (255.0 * (disk_temp - disk_temp_notice) / (disk_temp_halt - disk_temp_notice));
-    if (pwm < 0) {
-        pwm = 0;
-    } else if (pwm > 255) {
-        pwm = 255;
+    int pwm_hd = (int) (255.0 * (disk_temp - disk_temp_notice) /
+                        (disk_temp_halt - disk_temp_notice));
+    if (pwm_hd < 0) {
+        pwm_hd = 0;
+    } else if (pwm_hd > 255) {
+        pwm_hd = 255;
+    }
+
+    int pwm_ssd = (int) (255.0 * (ssd_temp - ssd_temp_notice) /
+                         (ssd_temp_halt - ssd_temp_notice));
+    if (pwm_ssd < 0) {
+        pwm_ssd = 0;
+    } else if (pwm_ssd > 255) {
+        pwm_ssd = 255;
     }
 
 #ifndef NDEBUG
-    syslog(LOG_DEBUG, "disk temp: %d, pwm output %d", disk_temp, pwm);
+    syslog(LOG_DEBUG,
+           "hard disk temp: %d, pwm_hd output %d; ssd temp %d, pwm_ssd output %d",
+           disk_temp, pwm_hd, ssd_temp, pwm_ssd);
 #endif
 
-    return pwm;
+    return pwm_hd > pwm_ssd ? pwm_hd : pwm_ssd;
 }
 
 int nas_disk_item_show(const int off) {
