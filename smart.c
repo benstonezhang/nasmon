@@ -15,16 +15,18 @@
 #include <unistd.h>
 #include <syslog.h>
 #include <string.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 
 #include "nasmon.h"
 
-time_t smart_update_interval = 600;
+time_t smart_update_interval = 10;
+time_t smart_disk_update_interval = 60;
 int disk_temp_notice = 40;
 int disk_temp_warn = 55;
 int disk_temp_halt = 60;
-int ssd_temp_notice = 42;
+int ssd_temp_notice = 40;
 int ssd_temp_warn = 65;
 int ssd_temp_halt = 70;
 
@@ -479,15 +481,21 @@ void nas_disk_init(void) {
 int nas_disk_update(time_t now) {
     static time_t last_tick = 0;
     enum e_powermode mode;
+    bool skip_disk = true;
     int err = 0;
 
     if (now - last_tick < smart_update_interval) {
         return err;
     }
 
+    skip_disk = now - last_tick < smart_disk_update_interval;
     disk_temp = 0;
     ssd_temp = 0;
     for (int i = 0; i < nas_disk_count; i++) {
+	if ((nas_disk_list[i].nmrr != 0x1) && skip_disk) {
+		continue;
+	}
+
         nas_disk_list[i].fd = open(nas_disk_list[i].name, O_RDONLY);
         if (nas_disk_list[i].fd < 0) {
             char buf[256];
@@ -499,7 +507,8 @@ int nas_disk_update(time_t now) {
 
         mode = ata_get_powermode(nas_disk_list[i].fd);
 
-        if ((mode != PWM_STANDBY) && (mode != PWM_SLEEPING)) {
+        if ((nas_disk_list[i].nmrr == 0x1) ||
+	    ((mode != PWM_STANDBY) && (mode != PWM_SLEEPING))) {
             nas_disk_list[i].temp = sata_get_temperature(
                     nas_disk_list[i].fd, nas_disk_list[i].attr_id);
 #ifndef NDEBUG
