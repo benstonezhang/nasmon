@@ -21,16 +21,16 @@
 
 #include "nasmon.h"
 
-time_t smart_update_interval = 10;
-time_t smart_disk_update_interval = 60;
-int disk_temp_notice = 40;
-int disk_temp_warn = 55;
-int disk_temp_halt = 60;
-int ssd_temp_notice = 40;
+time_t smart_update_interval = 30;
+time_t smart_hdd_update_interval = 300;
+int hdd_temp_notice = 40;
+int hdd_temp_warn = 55;
+int hdd_temp_halt = 60;
+int ssd_temp_notice = 45;
 int ssd_temp_warn = 65;
-int ssd_temp_halt = 70;
+int ssd_temp_halt = 75;
 
-static int disk_temp = 0;
+static int hdd_temp = 0;
 static int ssd_temp = 0;
 
 enum e_powermode {
@@ -106,7 +106,7 @@ static void hd_fixstring(unsigned char *s, const int bytecount,
     }
 }
 
-static int scsi_SG_IO(const int fd, unsigned char *cdb, const int cdb_len,
+static int scsi_sg_io(const int fd, unsigned char *cdb, const int cdb_len,
                       unsigned char *buffer, const int buffer_len,
                       unsigned char *sense, const unsigned char sense_len,
                       const int dxfer_direction) {
@@ -126,7 +126,7 @@ static int scsi_SG_IO(const int fd, unsigned char *cdb, const int cdb_len,
     return ioctl(fd, SG_IO, &io_hdr);
 }
 
-static int scsi_SEND_COMMAND(const int fd, unsigned char *cdb, int cdb_len,
+static int scsi_send_command(const int fd, unsigned char *cdb, int cdb_len,
                              unsigned char *buffer, const int buffer_len,
                              const int dxfer_direction) {
     unsigned int inbufsize, outbufsize, ret;
@@ -158,36 +158,36 @@ static int scsi_SEND_COMMAND(const int fd, unsigned char *cdb, int cdb_len,
     return ret;
 }
 
-static int
-scsi_command(int device, unsigned char *cdb, int cdb_len, unsigned char *buffer,
-             int buffer_len, int dxfer_direction) {
-    static int SG_IO_supported = -1;
+static int scsi_command(int device, unsigned char *cdb, int cdb_len,
+			unsigned char *buffer, int buffer_len,
+			int dxfer_direction) {
+    static int sg_io_supported = -1;
     int ret;
 
-    if (SG_IO_supported == 1) {
-        return scsi_SG_IO(device, cdb, cdb_len, buffer, buffer_len, NULL, 0,
+    if (sg_io_supported == 1) {
+        return scsi_sg_io(device, cdb, cdb_len, buffer, buffer_len, NULL, 0,
                           dxfer_direction);
     }
 
-    if (SG_IO_supported == 0) {
-        return scsi_SEND_COMMAND(device, cdb, cdb_len, buffer, buffer_len,
+    if (sg_io_supported == 0) {
+        return scsi_send_command(device, cdb, cdb_len, buffer, buffer_len,
                                  dxfer_direction);
     }
 
-    ret = scsi_SG_IO(device, cdb, cdb_len, buffer, buffer_len, NULL, 0,
+    ret = scsi_sg_io(device, cdb, cdb_len, buffer, buffer_len, NULL, 0,
                      dxfer_direction);
     if (ret == 0) {
-        SG_IO_supported = 1;
+        sg_io_supported = 1;
         return ret;
     } else {
-        SG_IO_supported = 0;
-        return scsi_SEND_COMMAND(device, cdb, cdb_len, buffer, buffer_len,
+        sg_io_supported = 0;
+        return scsi_send_command(device, cdb, cdb_len, buffer, buffer_len,
                                  dxfer_direction);
     }
 }
 
-static int
-scsi_inquiry(int device, unsigned char *buffer, const unsigned char size) {
+static int scsi_inquiry(int device, unsigned char *buffer,
+			const unsigned char size) {
     int ret;
     unsigned char cdb[6];
 
@@ -205,8 +205,8 @@ scsi_inquiry(int device, unsigned char *buffer, const unsigned char size) {
     return ret;
 }
 
-static int
-sata_pass_thru(const int fd, const unsigned char *cmd, unsigned char *buffer) {
+static int sata_pass_thru(const int fd, const unsigned char *cmd,
+			  unsigned char *buffer) {
     int dxfer_direction;
     int ret;
     unsigned char cdb[16], sense[32];
@@ -234,7 +234,7 @@ sata_pass_thru(const int fd, const unsigned char *cmd, unsigned char *buffer) {
     }
     cdb[14] = cmd[0];
 
-    ret = scsi_SG_IO(fd, cdb, sizeof(cdb), buffer, cmd[3] * 512, sense,
+    ret = scsi_sg_io(fd, cdb, sizeof(cdb), buffer, cmd[3] * 512, sense,
                      sizeof(sense), dxfer_direction);
 
     /* Verify SATA magic */
@@ -293,12 +293,12 @@ static unsigned short sata_model(const int fd, char *buf, const size_t len) {
            (((unsigned short) identify[identify_offset_nmrr * 2 + 1]) << 8);
 }
 
-static const unsigned char *
-sata_search_temperature(const unsigned char *smart_data,
-                        const unsigned char attribute_id) {
+static const unsigned char * sata_search_temperature(
+	const unsigned char *smart_data,
+	const unsigned char attribute_id) {
     smart_data += 3;
     for (int i = 0; i < 30; i++) {
-#ifndef NDEBUG
+#if 0
         syslog(LOG_DEBUG, "SMART field(%d) = %d", *smart_data,
                *(smart_data + 3));
 #endif
@@ -311,8 +311,8 @@ sata_search_temperature(const unsigned char *smart_data,
     return NULL;
 }
 
-static unsigned char
-sata_get_temperature(const int fd, const unsigned char attr_id) {
+static unsigned char sata_get_temperature(const int fd,
+					  const unsigned char attr_id) {
     const unsigned char *field;
     unsigned char temp = 0;
     unsigned char values[512];
@@ -473,26 +473,34 @@ void nas_disk_init(void) {
     atexit(nas_disk_free);
 
     syslog(LOG_INFO, "Hard disk guard temperature: %d -> %d",
-           disk_temp_notice, disk_temp_halt);
+           hdd_temp_notice, hdd_temp_halt);
     syslog(LOG_INFO, "SSD guard temperature: %d -> %d",
            ssd_temp_notice, ssd_temp_halt);
 }
 
 int nas_disk_update(time_t now) {
     static time_t last_tick = 0;
+    static time_t last_hdd_tick = 0;
     enum e_powermode mode;
-    bool skip_disk = true;
+    bool hdd_bypass;
     int err = 0;
 
     if (now - last_tick < smart_update_interval) {
         return err;
     }
 
-    skip_disk = now - last_tick < smart_disk_update_interval;
-    disk_temp = 0;
+    if (now - last_hdd_tick < smart_hdd_update_interval) {
+        hdd_bypass = true;
+    } else {
+        hdd_bypass = false;
+        hdd_temp = 0;
+        last_hdd_tick = now;
+    }
     ssd_temp = 0;
+    last_tick = now;
+
     for (int i = 0; i < nas_disk_count; i++) {
-	if ((nas_disk_list[i].nmrr != 0x1) && skip_disk) {
+	if ((nas_disk_list[i].nmrr != 0x1) && hdd_bypass) {
 		continue;
 	}
 
@@ -518,15 +526,15 @@ int nas_disk_update(time_t now) {
 #endif
 
             if (nas_disk_list[i].nmrr != 0x01) {
-                if (nas_disk_list[i].temp > disk_temp) {
-                    disk_temp = nas_disk_list[i].temp;
+                if (nas_disk_list[i].temp > hdd_temp) {
+                    hdd_temp = nas_disk_list[i].temp;
                 }
 
-                if (nas_disk_list[i].temp >= disk_temp_warn) {
+                if (nas_disk_list[i].temp >= hdd_temp_warn) {
                     syslog(LOG_WARNING, "%s: high temperature %dC",
                            nas_disk_list[i].name, nas_disk_list[i].temp);
 
-                    if (nas_disk_list[i].temp >= disk_temp_halt) {
+                    if (nas_disk_list[i].temp >= hdd_temp_halt) {
                         syslog(LOG_ALERT,
                                "%s: temperature too high, need to shutdown",
                                nas_disk_list[i].name);
@@ -556,18 +564,17 @@ int nas_disk_update(time_t now) {
 
         nas_safe_close(nas_disk_list[i].fd);
     }
-    last_tick = now;
 
     return err;
 }
 
 int nas_disk_get_pwm(void) {
-    int pwm_hd = (int) (255.0 * (disk_temp - disk_temp_notice) /
-                        (disk_temp_halt - disk_temp_notice));
-    if (pwm_hd < 0) {
-        pwm_hd = 0;
-    } else if (pwm_hd > 255) {
-        pwm_hd = 255;
+    int pwm_hdd = (int) (255.0 * (hdd_temp - hdd_temp_notice) /
+                        (hdd_temp_halt - hdd_temp_notice));
+    if (pwm_hdd < 0) {
+        pwm_hdd = 0;
+    } else if (pwm_hdd > 255) {
+        pwm_hdd = 255;
     }
 
     int pwm_ssd = (int) (255.0 * (ssd_temp - ssd_temp_notice) /
@@ -579,12 +586,11 @@ int nas_disk_get_pwm(void) {
     }
 
 #ifndef NDEBUG
-    syslog(LOG_DEBUG,
-           "hard disk temp: %d, pwm_hd output %d; ssd temp %d, pwm_ssd output %d",
-           disk_temp, pwm_hd, ssd_temp, pwm_ssd);
+    syslog(LOG_DEBUG, "hard disk temp: %d, pwm_hdd output %d; ssd temp %d,"
+	   " pwm_ssd output %d", hdd_temp, pwm_hdd, ssd_temp, pwm_ssd);
 #endif
 
-    return pwm_hd > pwm_ssd ? pwm_hd : pwm_ssd;
+    return pwm_hdd > pwm_ssd ? pwm_hdd : pwm_ssd;
 }
 
 int nas_disk_item_show(const int off) {

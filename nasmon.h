@@ -74,8 +74,10 @@ int nas_sensor_get_pwm(void);
 
 /* S.M.A.R.T */
 extern time_t smart_update_interval;
-extern int disk_temp_notice;
-extern int disk_temp_halt;
+extern int hdd_temp_notice;
+extern int hdd_temp_halt;
+extern int ssd_temp_notice;
+extern int ssd_temp_halt;
 
 void nas_disk_init(void);
 int nas_disk_update(time_t now);

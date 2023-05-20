@@ -238,10 +238,12 @@ static void usage(const char *restrict name) {
            "\t--temp_cpu_notice=TEMP\tfan bump temperature(C) for CPU (default: %.0f)\n"
            "\t--temp_cpu_high=TEMP\thalt temperature(C) for CPU (default: %.0f)\n"
            "\t--temp_sys_notice=TEMP\tfan bump temperature(C) for mother board (default: %.0f)\n"
-           "\t--temp_disk_notice=TEMP\tfan bump temperature(C) for hard disk (default: %d)\n"
-           "\t--temp_disk_high=TEMP\thalt temperature(C) for hard disk (default: %d)\n",
+           "\t--temp_hdd_notice=TEMP\tfan bump temperature(C) for hard disk (default: %d)\n"
+           "\t--temp_hdd_high=TEMP\thalt temperature(C) for hard disk (default: %d)\n"
+           "\t--temp_ssd_notice=TEMP\tfan bump temperature(C) for SSD (default: %d)\n"
+           "\t--temp_ssd_high=TEMP\thalt temperature(C) for SSD (default: %d)\n",
            name, cpu_temp_notice, cpu_temp_halt, sys_temp_notice,
-           disk_temp_notice, disk_temp_halt);
+           hdd_temp_notice, hdd_temp_halt, ssd_temp_notice, ssd_temp_halt);
     exit(EXIT_FAILURE);
 }
 
@@ -282,8 +284,10 @@ int main(const int argc, char *const argv[]) {
                 {"temp_cpu_notice",  required_argument, 0, 'c'},
                 {"temp_cpu_high",    required_argument, 0, 'd'},
                 {"temp_sys_notice",  required_argument, 0, 'e'},
-                {"temp_disk_notice", required_argument, 0, 'g'},
-                {"temp_disk_high",   required_argument, 0, 'h'},
+                {"temp_hdd_notice",  required_argument, 0, 'g'},
+                {"temp_hdd_high",    required_argument, 0, 'h'},
+                {"temp_ssd_notice",  required_argument, 0, 'G'},
+                {"temp_ssd_high",    required_argument, 0, 'H'},
                 {0,                  0,                 0, 0}
         };
         /* getopt_long stores the option index here. */
@@ -332,10 +336,16 @@ int main(const int argc, char *const argv[]) {
                 sys_temp_notice = strtol(optarg, NULL, 10);
                 break;
             case 'g':
-                disk_temp_notice = strtol(optarg, NULL, 10);
+                hdd_temp_notice = strtol(optarg, NULL, 10);
                 break;
             case 'h':
-                disk_temp_halt = strtol(optarg, NULL, 10);
+                hdd_temp_halt = strtol(optarg, NULL, 10);
+                break;
+            case 'G':
+                ssd_temp_notice = strtol(optarg, NULL, 10);
+                break;
+            case 'H':
+                ssd_temp_halt = strtol(optarg, NULL, 10);
                 break;
             case '?':
             default:
