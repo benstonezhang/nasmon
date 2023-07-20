@@ -77,7 +77,7 @@ static void nas_power_off(void) {
         const char *shutdown = "/sbin/shutdown";
         setsid();
         nas_close_all_files();
-        execl(shutdown, shutdown, "-P", "now", (char *) NULL);
+        execl(shutdown, shutdown, "-h", "-P", "now", (char *) NULL);
     }
 }
 
@@ -98,6 +98,9 @@ static void nas_power_event(const struct input_event *restrict pe) {
             syslog(LOG_NOTICE, "Power button pressed again");
         }
 
+        if (!lcd_is_on()) {
+            lcd_on();
+        }
         lcd_printf(1, ">>> PowerOff <<<");
         lcd_printf(2, "Confirm: %d/%d", pwr_repeats, poweroff_event_count);
     }
