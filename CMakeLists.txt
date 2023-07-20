@@ -13,7 +13,8 @@ link_libraries("-lsensors")
 
 # Compiler configuration
 set(CMAKE_C_FLAGS_DEBUG "-g -O1")
-set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -flto=8 -floop-interchange -ftree-loop-distribution -floop-strip-mine -floop-block -ftree-vectorize -fuse-ld=gold")
+#set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -flto=8 -floop-interchange -ftree-loop-distribution -floop-strip-mine -floop-block -ftree-vectorize -fuse-ld=gold")
+set(CMAKE_C_FLAGS_RELEASE "-O2 -DNDEBUG")
 set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-Wl,--as-needed")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Wl,--as-needed -fuse-linker-plugin -s")
 
