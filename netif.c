@@ -85,8 +85,12 @@ static int nas_ifs_get_ipv4(const char *ifname, char *buf, const size_t len) {
     strncpy(ifr.ifr_name, ifname, IFNAMSIZ - 1);
 
     ioctl(inet_sock, SIOCGIFADDR, &ifr);
-    inet_ntop(AF_INET, &(((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr),
-              buf, len);
+    struct in_addr *sin = &(((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr);
+    if (sin->s_addr) {
+        inet_ntop(AF_INET, sin, buf, len);
+    } else {
+        buf[0] = '\0';
+    }
     return strlen(buf);
 }
 
@@ -96,6 +100,7 @@ static int nas_ifs_get_ipv6(const char *ifname, char *buf, const size_t len,
 
     int count = 0;
     const char *const sep = "\",\"";
+    buf[0] = '\0';
     while (ifa != NULL) {
         if ((ifa->ifa_addr != NULL) &&
             (ifa->ifa_addr->sa_family == AF_INET6) &&
