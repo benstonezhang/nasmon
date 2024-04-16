@@ -23,12 +23,12 @@
 
 time_t smart_update_interval = 30;
 time_t smart_hdd_update_interval = 300;
-int hdd_temp_notice = 40;
-int hdd_temp_warn = 55;
-int hdd_temp_halt = 60;
+int hdd_temp_notice = 35;
+int hdd_temp_warn = 50;
+int hdd_temp_halt = 55;
 int ssd_temp_notice = 45;
 int ssd_temp_warn = 65;
-int ssd_temp_halt = 75;
+int ssd_temp_halt = 70;
 
 static int hdd_temp = 0;
 static int ssd_temp = 0;
@@ -311,10 +311,10 @@ static const unsigned char * sata_search_temperature(
     return NULL;
 }
 
-static unsigned char sata_get_temperature(const int fd,
-					  const unsigned char attr_id) {
+static char sata_get_temperature(const int fd,
+                                 const unsigned char attr_id) {
     const unsigned char *field;
-    unsigned char temp = 0;
+    char temp = 0;
     unsigned char values[512];
 
     /* get SMART values */
@@ -328,7 +328,7 @@ static unsigned char sata_get_temperature(const int fd,
         /* temperature */
         field = sata_search_temperature(values, attr_id);
         if (field != NULL) {
-            temp = *field;
+            temp = (char) *field;
         }
     } else {
         nas_log_error();
@@ -342,7 +342,7 @@ struct nas_disk_info {
     const char *model;
     int fd;
     unsigned char attr_id;
-    unsigned char temp;
+    char temp;
     unsigned short nmrr;
 };
 
@@ -415,7 +415,7 @@ void nas_disk_init(void) {
             exit(EXIT_FAILURE);
         }
 
-        char buf[128];
+        char buf[1024];
         nas_disk_list[i].nmrr = sata_model(nas_disk_list[i].fd, buf,
                                            sizeof(buf));
         nas_disk_list[i].model = strdup(buf);
@@ -453,9 +453,10 @@ void nas_disk_init(void) {
                                                          temp_attr_ids[j]);
 
             if (nas_disk_list[i].temp > 0) {
-                syslog(LOG_INFO, "%s: %s, temperature %dC",
+                syslog(LOG_INFO, "%s: %s, temperature %dC (R%d)",
                        nas_disk_list[i].name,
-                       nas_disk_list[i].model, nas_disk_list[i].temp);
+                       nas_disk_list[i].model, nas_disk_list[i].temp,
+                       temp_attr_ids[j]);
                 nas_disk_list[i].attr_id = temp_attr_ids[j];
                 nas_disk_count++;
                 break;
@@ -531,12 +532,13 @@ int nas_disk_update(time_t now) {
                 }
 
                 if (nas_disk_list[i].temp >= hdd_temp_warn) {
-                    syslog(LOG_WARNING, "%s: high temperature %dC",
+                    syslog(LOG_WARNING, "%s: hard disk high temperature %dC",
                            nas_disk_list[i].name, nas_disk_list[i].temp);
 
                     if (nas_disk_list[i].temp >= hdd_temp_halt) {
                         syslog(LOG_ALERT,
-                               "%s: temperature too high, need to shutdown",
+                               "%s: hard disk temperature too high, "
+                               "need to shutdown",
                                nas_disk_list[i].name);
                         err++;
                     }
@@ -547,12 +549,14 @@ int nas_disk_update(time_t now) {
                 }
 
                 if (nas_disk_list[i].temp >= ssd_temp_warn) {
-                    syslog(LOG_WARNING, "%s: high temperature %dC",
+                    syslog(LOG_WARNING,
+                           "%s: solid state disk high temperature %dC",
                            nas_disk_list[i].name, nas_disk_list[i].temp);
 
                     if (nas_disk_list[i].temp >= ssd_temp_halt) {
                         syslog(LOG_ALERT,
-                               "%s: temperature too high, need to shutdown",
+                               "%s: solid state disk temperature too high, "
+                               "need to shutdown",
                                nas_disk_list[i].name);
                         err++;
                     }
