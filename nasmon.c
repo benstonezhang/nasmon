@@ -450,7 +450,7 @@ int main(const int argc, char *const argv[]) {
         FD_SET(pwr_fd, &rfds);
         if (fb_fd >= 0)
             FD_SET(fb_fd, &rfds);
-        if (tv.tv_sec - sts_last_ts >= nas_hw_scan_interval) {
+        if (tv.tv_sec - sts_last_ts >= 0) {
             FD_SET(sts_fd, &rfds);
         }
 
