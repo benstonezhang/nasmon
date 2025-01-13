@@ -3,6 +3,7 @@
  */
 
 #include <sys/sysinfo.h>
+#include <time.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -91,13 +92,15 @@ void nas_sysload_summary_show(void) {
 }
 
 int nas_sysload_to_json(char *buf, const size_t len) {
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME_COARSE, &ts);
     nas_sysload_update();
     return snprintf(
             buf, len,
-            "\"uptime\":%ld,\"load\":{\"1m\":%.2f,\"5m\":%.2f,\"15m\":%.2f},"
+            "\"time\":%ld,\"uptime\":%ld,\"load\":{\"1m\":%.2f,\"5m\":%.2f,\"15m\":%.2f},"
             "\"procs\":%hu,\"memory\":{\"total\":%lu,\"free\":%lu,\"shared\":"
             "%lu,\"buffer\":%lu},\"swap\":{\"total\":%lu,\"free\":%lu}",
-            info.uptime, info.loads[0] / linux_loads_scale,
+            ts.tv_sec, info.uptime, info.loads[0] / linux_loads_scale,
             info.loads[1] / linux_loads_scale,
             info.loads[2] / linux_loads_scale,
             info.procs, info.totalram * info.mem_unit,
