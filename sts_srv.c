@@ -91,7 +91,6 @@ int nas_stssrv_to_json(char *buf, const size_t len) {
     count += nas_ifs_to_json(buf + count, len - count);
     strncpy(buf + count, "}}", len - count);
     count += 2;
-    buf[count++] = '\0';
     assert(count < len);
     return count;
 }
@@ -141,14 +140,10 @@ void nas_stssrv_export(void) {
     if (http) {
         strncpy(send_buf, http_hdr, http_hdr_len);
         offset = http_hdr_len;
-        offset += snprintf(send_buf + offset, sizeof(send_buf) - offset, "%d\r\n\r\n", count + 2);
+        offset += snprintf(send_buf + offset, sizeof(send_buf) - offset, "%d\r\n\r\n", count);
     }
     strncpy(send_buf + offset, buf, sizeof(send_buf) - offset);
     offset += count;
-    if (http) {
-        strncpy(send_buf + offset, "\r\n", sizeof(send_buf) - offset);
-        offset += 2;
-    }
 
     if (nas_sts_skt_write(client_fd, send_buf, offset) != offset) {
         syslog(LOG_WARNING, "failed write status to socket");
