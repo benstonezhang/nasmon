@@ -4,9 +4,9 @@
 
 #include <linux/input.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 
 #include <fcntl.h>
+#include <time.h>
 #include <unistd.h>
 #include <syslog.h>
 #include <errno.h>
@@ -113,19 +113,15 @@ static void nas_power_event(const struct input_event *restrict pe) {
     }
 }
 
-static void nas_show_clock(void) {
-    struct timeval tv;
+static void nas_show_clock(const struct timeval *tv) {
     struct tm tm;
-
-    gettimeofday(&tv, NULL);
-    localtime_r(&(tv.tv_sec), &tm);
-
+    localtime_r(&(tv->tv_sec), &tm);
     lcd_printf(1, model);
     lcd_printf(2, "%04d-%02d-%02d %02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1,
                tm.tm_mday, tm.tm_hour, tm.tm_min);
 }
 
-static void show_summary_info(const int off) {
+static void show_summary_info(const int off, const struct timeval *tv) {
     static int id = 0;
 
     id = (LCD_INFO_COUNT + id + off) % LCD_INFO_COUNT;
@@ -143,13 +139,13 @@ static void show_summary_info(const int off) {
             nas_ifs_summary_show();
             break;
         case LCD_INFO_CLOCK:
-            nas_show_clock();
+            nas_show_clock(tv);
         default:
             break;
     }
 }
 
-static void nas_handle_event(const int page_switch, const int off) {
+static void nas_handle_event(const int page_switch, const int off, const struct timeval *tv) {
     switch (info_major_index) {
         case LCD_INFO_SENSOR:
             nas_sensor_item_show(off);
@@ -164,13 +160,13 @@ static void nas_handle_event(const int page_switch, const int off) {
             nas_ifs_item_show(off);
             break;
         case LCD_INFO_SUMMARY:
-            show_summary_info(off);
+            show_summary_info(off, tv);
             break;
         case LCD_CPU_FREQ:
             cpu_freq_select(page_switch, off);
             break;
         default:
-            nas_show_clock();
+            nas_show_clock(tv);
             break;
     }
 }
@@ -222,7 +218,7 @@ static void nas_front_panel_event(const struct input_event *restrict pe) {
     }
 
     if (lcd_is_on()) {
-        nas_handle_event(page_switch, off);
+        nas_handle_event(page_switch, off, &pe->time);
         present_ts = pe->time.tv_sec;
     }
 }
@@ -440,30 +436,30 @@ int main(const int argc, char *const argv[]) {
 
     struct input_event e;
     fd_set rfds;
+    struct timespec ts;
     struct timeval tv;
     int ready_fds;
 
     while (keep_running != 0) {
-        gettimeofday(&tv, NULL);
+        clock_gettime(CLOCK_REALTIME_COARSE, &ts);
 
         FD_ZERO(&rfds);
         FD_SET(pwr_fd, &rfds);
         if (fb_fd >= 0)
             FD_SET(fb_fd, &rfds);
-        if (tv.tv_sec - sts_last_ts >= 0) {
+        if (ts.tv_sec - sts_last_ts >= 0)
             FD_SET(sts_fd, &rfds);
-        }
 
         tv.tv_sec = (nas_hw_scan_interval - 1) -
-                    (tv.tv_sec % nas_hw_scan_interval);
-        tv.tv_usec = 1000000 - tv.tv_usec;
+                    (ts.tv_sec % nas_hw_scan_interval);
+        tv.tv_usec = (1000000000 - ts.tv_nsec) /  1000;
         ready_fds = select(sts_fd + 1, &rfds, NULL, NULL, &tv);
 
         if (ready_fds == 0) {
-            gettimeofday(&tv, NULL);
+            clock_gettime(CLOCK_REALTIME_COARSE, &ts);
 
-            if ((nas_sensor_update(tv.tv_sec) != 0) ||
-                (nas_disk_update(tv.tv_sec) != 0)) {
+            if ((nas_sensor_update(ts.tv_sec) != 0) ||
+                (nas_disk_update(ts.tv_sec) != 0)) {
                 nas_power_off();
                 break;
             }
@@ -472,11 +468,11 @@ int main(const int argc, char *const argv[]) {
 
             if (lcd_is_on()) {
                 if ((pwr_repeats != 0) &&
-                    (tv.tv_sec - pwr_ts > poweroff_event_timeout)) {
+                    (ts.tv_sec - pwr_ts > poweroff_event_timeout)) {
                     pwr_repeats = 0;
                 }
                 if ((pwr_repeats == 0) &&
-                    (tv.tv_sec - present_ts > present_timeout)) {
+                    (ts.tv_sec - present_ts > present_timeout)) {
                     lcd_off();
                     info_major_index = LCD_INFO_SUMMARY;
                 }
@@ -497,8 +493,7 @@ int main(const int argc, char *const argv[]) {
                 }
                 nas_power_event(&e);
             } else if (FD_ISSET(sts_fd, &rfds)) {
-                gettimeofday(&tv, NULL);
-                sts_last_ts = tv.tv_sec;
+                sts_last_ts = ts.tv_sec;
                 nas_stssrv_export();
             }
         } else if (errno != EINTR) {
