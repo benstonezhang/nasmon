@@ -95,12 +95,46 @@ int nas_stssrv_to_json(char *buf, const size_t len) {
     return count;
 }
 
+int nas_sts_skt_read(int fd, char *buf, int count) {
+    int rc, off = 0, retry = 0;
+    while (off < count) {
+        rc = read(fd, buf + off, count - off);
+        if (rc <= 0) {
+            if (errno == EINTR)
+                continue;
+            if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+                retry++;
+                if (retry > 3)
+                    return rc;
+                struct timespec ts;
+                ts.tv_sec = 0;
+                ts.tv_nsec = 1000000;
+                nanosleep(&ts, NULL);
+                continue;
+            }
+            return rc;
+        }
+        off += rc;
+    }
+    return count;
+
+}
+
 int nas_sts_skt_write(int fd, char *buf, int count) {
-    int rc, off = 0;
+    int rc, off = 0, retry = 0;
     while (off < count) {
         rc = write(fd, buf + off, count - off);
         if (rc <= 0) {
-            if ((errno == EINTR) || (errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+            if (errno == EINTR)
+                continue;
+            if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+                retry++;
+                if (retry > 3)
+                    return rc;
+                struct timespec ts;
+                ts.tv_sec = 0;
+                ts.tv_nsec = 1000000;
+                nanosleep(&ts, NULL);
                 continue;
             }
             return rc;
@@ -131,7 +165,7 @@ void nas_stssrv_export(void) {
         return;
     }
 
-    if ((read(client_fd, buf, 4) == 4) &&
+    if ((nas_sts_skt_read(client_fd, buf, 4) == 4) &&
         (strncmp(buf, "GET ", 4) == 0)) {
         http = 1;
     }
