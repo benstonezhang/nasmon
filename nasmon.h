@@ -31,11 +31,11 @@
 #endif
 
 typedef enum {
-    NAS_CPU_FREQ_MIN,
-    NAS_CPU_FREQ_LOW,
-    NAS_CPU_FREQ_HIGH,
-    NAS_CPU_FREQ_MAX,
-    NAS_CPU_FREQ_COUNT
+	NAS_CPU_FREQ_MIN,
+	NAS_CPU_FREQ_LOW,
+	NAS_CPU_FREQ_HIGH,
+	NAS_CPU_FREQ_MAX,
+	NAS_CPU_FREQ_COUNT
 } nas_cpu_freq_spec;
 
 const char *nas_get_model(void);
@@ -46,6 +46,7 @@ void nas_close_all_files(void);
 void nas_log_error(void);
 int nas_read_file(const char *name, char *buf, int count);
 int nas_write_file(const char *name, const char *buf, int count);
+int nas_safe_write(const int fd, const char *buf, int count);
 
 /* LCD */
 void lcd_open(void);
