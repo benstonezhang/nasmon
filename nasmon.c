@@ -29,6 +29,7 @@
 
 #define NAS_HW_SCAN_INTERVAL 5
 #define POWEROFF_EVENT_COUNT 3
+#define POWEROFF_EVENT_INTERVAL  2
 #define POWEROFF_EVENT_TIMEOUT  10
 #define PRESENT_TIMEOUT 30
 #define MAX_EVENTS 3
@@ -106,22 +107,24 @@ static void nas_power_event(const struct input_event *restrict pe) {
 	print_event(pe);
 #endif
 
-	if (pe->code == SYS_BUTTON_POWER && pe->value != 0) {
-		if (pe->time.tv_sec - pwr_ts > POWEROFF_EVENT_TIMEOUT) {
-			pwr_ts = pe->time.tv_sec;
-			pwr_repeats = 1;
-			syslog(LOG_NOTICE, "Power button pressed to request poweroff");
-		} else {
-			pwr_repeats += 1;
-			syslog(LOG_NOTICE, "Power button pressed again");
-		}
+	if (pe->code != SYS_BUTTON_POWER || pe->value == 0 ||
+	    pe->time.tv_sec - pwr_ts < POWEROFF_EVENT_INTERVAL)
+		return;
 
-		if (!lcd_is_on())
-			lcd_on();
-
-		lcd_printf(1, ">>> PowerOff <<<");
-		lcd_printf(2, "Confirm: %d/%d", pwr_repeats, POWEROFF_EVENT_COUNT);
+	if (pe->time.tv_sec - pwr_ts > POWEROFF_EVENT_TIMEOUT) {
+		pwr_repeats = 1;
+		syslog(LOG_NOTICE, "Power button pressed to request poweroff");
+	} else {
+		pwr_repeats += 1;
+		syslog(LOG_NOTICE, "Power button pressed again");
 	}
+	pwr_ts = pe->time.tv_sec;
+
+	if (!lcd_is_on())
+		lcd_on();
+
+	lcd_printf(1, ">>> PowerOff <<<");
+	lcd_printf(2, "Confirm: %d/%d", pwr_repeats, POWEROFF_EVENT_COUNT);
 
 	present_ts = pe->time.tv_sec;
 
